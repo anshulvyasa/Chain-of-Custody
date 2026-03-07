@@ -1,0 +1,18 @@
+version: '3.8'
+
+services:
+  chain-db:
+    image: postgres:15
+    container_name: chainofcustody_db
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: chainofcustody
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+volumes:
+  pgdata:

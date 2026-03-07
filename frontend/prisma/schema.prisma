@@ -1,0 +1,60 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model Investigator {
+  walletAddress String   @id
+  name          String?
+  badgeNumber   String?
+  casesCreated  Case[]
+}
+
+model Case {
+  caseId        String   @id // Corresponds to the smart contract caseId
+  caseTitle     String
+  createdAt     DateTime @default(now())
+  createdByWallet String
+  createdBy     Investigator @relation(fields: [createdByWallet], references: [walletAddress])
+  folders       Folder[]
+}
+
+model Folder {
+  id          String   @id @default(uuid())
+  name        String
+  caseId      String
+  case        Case     @relation(fields: [caseId], references: [caseId], onDelete: Cascade)
+  
+  parentId    String?
+  parent      Folder?  @relation("FolderToFolder", fields: [parentId], references: [id], onDelete: Cascade)
+  subFolders  Folder[] @relation("FolderToFolder")
+
+  items       DocumentItem[]
+  createdAt   DateTime @default(now())
+}
+
+model DocumentItem {
+  id          String   @id @default(uuid())
+  name        String
+  folderId    String
+  folder      Folder   @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  versions    DocumentVersion[]
+  createdAt   DateTime @default(now())
+}
+
+model DocumentVersion {
+  id              String   @id @default(uuid())
+  itemId          String
+  item            DocumentItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  fileUrl         String   // URL or CID of the file
+  fileType        String
+  documentHash    String   // Off-chain stored reference of the hash
+  uploadTimestamp DateTime @default(now())
+  uploaderWallet  String   // Address of the investigator
+}
