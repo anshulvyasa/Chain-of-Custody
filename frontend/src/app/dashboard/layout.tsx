@@ -1,10 +1,10 @@
 'use client';
 
-import { useAccount } from 'wagmi';
+import { useAccount, useConnection } from 'wagmi';
 import { useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useIsInvestigator } from '@/lib/hooks';
-import { Folder, LogOut, ShieldAlert, FileText, Search, Plus } from 'lucide-react';
+import { Folder, ShieldAlert, Search, Plus } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Link from 'next/link';
 
@@ -13,21 +13,66 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { isConnected } = useAccount();
-  const { data: isInvestigator, isLoading, isError } = useIsInvestigator();
+
+  const { address, isConnected, isConnecting, isReconnecting } = useConnection();
+  const { data: isInvestigator, isLoading: isInvestigatorLoading } = useIsInvestigator();
   const router = useRouter();
 
+  const [isMounted, setIsMounted] = useState<boolean>(false);
+
   useEffect(() => {
-    if (!isConnected || (!isLoading && !isInvestigator)) {
+    setIsMounted(true);
+  }, []);
+
+
+  const isWagmiLoading = isConnecting || isReconnecting;
+  const isAuthChecking = !isMounted || isWagmiLoading || isInvestigatorLoading;
+
+
+  useEffect(() => {
+    if (!address) return;
+
+    const f = async () => {
+
+      const response = await fetch(
+        "http://localhost:5000/api/v1/investigator/investigator-check-and-create",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            walletAddress: address,
+          }),
+        }
+      );
+    }
+
+    f();
+
+
+  }, [address]);
+
+  useEffect(() => {
+    if (isAuthChecking) return;
+
+    if (!isConnected || !isInvestigator) {
       router.push('/');
     }
-  }, [isConnected, isInvestigator, isLoading, router]);
+  }, [isAuthChecking, isConnected, isInvestigator, router]);
 
-  if (isLoading) {
-    return <div className="min-h-screen bg-black text-white flex items-center justify-center">Loading clearance data...</div>;
+
+  if (isAuthChecking) {
+    return (
+      <div className="min-h-screen bg-zinc-950 flex flex-col items-center justify-center">
+        <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+        <div className="text-zinc-400 font-mono text-sm uppercase tracking-widest">
+          Verifying clearance...
+        </div>
+      </div>
+    );
   }
 
-  // Define some mock cases since we haven't hooked up the DB fetching yet
   const mockCases = [
     { id: 'case-1029', title: 'Operation Alpha' },
     { id: 'case-1033', title: 'Financial Fraud 24X' },

@@ -1,0 +1,18 @@
+version: "3.9"
+
+services:
+  postgres-chain:
+    image: postgres:15
+    container_name: chain_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: chainofcustody
+    ports:
+      - "5433:5432"
+    volumes:
+      - chain_postgres_data:/var/lib/postgresql/data
+
+volumes:
+  chain_postgres_data:
