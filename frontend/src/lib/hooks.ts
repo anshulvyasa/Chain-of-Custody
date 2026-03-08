@@ -1,4 +1,4 @@
-import { useReadContract, useWriteContract, useAccount } from 'wagmi';
+import { useReadContract, useWriteContract, useAccount, useConnection } from 'wagmi';
 import { CASE_CONTRACT_ABI, CONTRACT_ADDRESS } from './contracts';
 
 export function useIsInvestigator() {
@@ -15,22 +15,27 @@ export function useIsInvestigator() {
   });
 }
 
+import { useQueryClient } from '@tanstack/react-query';
+
 export function useCaseContractActions() {
   const { writeContractAsync } = useWriteContract();
-  const { address } = useAccount();
+  const { address } = useConnection();
+  const queryClient = useQueryClient();
 
-  const addDocumentHash = async (caseId: string, documentId: string, hash: string) => {
-    return writeContractAsync({
+  const addDocumentHash = async (caseId: string, documentId: string, hash: string, cid: string) => {
+    const tx = await writeContractAsync({
       address: CONTRACT_ADDRESS,
       abi: CASE_CONTRACT_ABI,
       functionName: 'addDocumentHash',
-      args: [caseId, documentId, hash],
+      args: [caseId, documentId, hash, cid],
     });
+    queryClient.invalidateQueries({ queryKey: ['caseStructure', caseId] });
+    return tx;
   };
 
   const createNewCase = async (title: string, caseId: string) => {
     if (!address) throw new Error("Wallet not connected");
-    return writeContractAsync({
+    const tx = await writeContractAsync({
       address: CONTRACT_ADDRESS,
       abi: CASE_CONTRACT_ABI,
       functionName: 'createCase',
@@ -43,6 +48,8 @@ export function useCaseContractActions() {
         caseId
       ],
     });
+    queryClient.invalidateQueries({ queryKey: ['cases'] });
+    return tx;
   };
 
   return { addDocumentHash, createNewCase };

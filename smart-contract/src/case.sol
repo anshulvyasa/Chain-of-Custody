@@ -12,32 +12,41 @@ struct CaseInfo {
     address createdBy;
 }
 
+struct DocumentInfo {
+    string hash; // hash of the document
+    string cid; // content identifier
+}
+
 contract Case is Investigator {
     using EnumerableSet for EnumerableSet.AddressSet;
+    using EnumerableSet for EnumerableSet.StringSet;
 
     mapping(string => CaseInfo) private caseToDetail;
     mapping(string => EnumerableSet.AddressSet) private caseToInvestigator;
-    mapping(string => mapping(string => string)) private caseDocumentToHash;
+    mapping(address => EnumerableSet.StringSet) private investigatorToCases;
+    mapping(string => mapping(string => DocumentInfo))
+        private caseDocumentToHash;
 
     // case events
     event CaseAdded(
         address indexed investigator,
-        string indexed caseId,
+        string caseId,
+        string caseTitle,
         uint timestamp
     );
 
     event InvestigatorAddedToCase(
         address indexed investigator,
         address indexed from,
-        string indexed caseId,
+        string caseId,
         uint timestamp
     );
 
     event DocumentHashAdded(
         address indexed investigator,
-        string indexed caseId,
-        string indexed documentId,
-        string hash
+        string caseId,
+        string documentPath,
+        DocumentInfo info
     );
 
     constructor(
@@ -50,8 +59,14 @@ contract Case is Investigator {
     ) public OnlyAdminInvestigator {
         caseToDetail[caseId] = currentCase;
         caseToInvestigator[caseId].add(msg.sender);
+        investigatorToCases[msg.sender].add(caseId);
 
-        emit CaseAdded(msg.sender, caseId, block.timestamp);
+        emit CaseAdded(
+            msg.sender,
+            caseId,
+            currentCase.caseTitle,
+            block.timestamp
+        );
         emit InvestigatorAddedToCase(
             msg.sender,
             address(this),
@@ -71,6 +86,8 @@ contract Case is Investigator {
         );
 
         caseToInvestigator[_caseId].add(_investigator);
+        investigatorToCases[_investigator].add(_caseId);
+
         emit InvestigatorAddedToCase(
             _investigator,
             msg.sender,
@@ -81,15 +98,31 @@ contract Case is Investigator {
 
     function addDocumentHash(
         string memory _caseId,
-        string memory _documentId,
-        string memory _hash
+        string memory _documentPath,
+        string memory _hash,
+        string memory _cid
     ) public {
         require(
             caseToInvestigator[_caseId].contains(msg.sender),
             "You are not authorized to update this document"
         );
 
-        caseDocumentToHash[_caseId][_documentId] = _hash;
-        emit DocumentHashAdded(msg.sender, _caseId, _documentId, _hash);
+        caseDocumentToHash[_caseId][_documentPath] = DocumentInfo(_hash, _cid);
+        emit DocumentHashAdded(
+            msg.sender,
+            _caseId,
+            _documentPath,
+            DocumentInfo(_hash, _cid)
+        );
+    }
+
+    function getInvestigatorsForCase(
+        string memory _caseId
+    ) public view returns (address[] memory) {
+        return caseToInvestigator[_caseId].values();
+    }
+
+    function getCasesForInvestigator() public view returns (string[] memory) {
+        return investigatorToCases[msg.sender].values();
     }
 }

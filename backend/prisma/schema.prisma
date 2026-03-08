@@ -6,7 +6,6 @@
 
 generator client {
   provider = "prisma-client-js"
-  output   = "../generated/prisma"
 }
 
 datasource db {
@@ -29,36 +28,35 @@ model Case {
   folders         Folder[]
 }
 
-model Folder {
-  id     String @id @default(uuid())
-  name   String
-  caseId String
-  case   Case   @relation(fields: [caseId], references: [caseId], onDelete: Cascade)
-
-  parentId   String?
-  parent     Folder?  @relation("FolderToFolder", fields: [parentId], references: [id], onDelete: Cascade)
-  subFolders Folder[] @relation("FolderToFolder")
-
-  items     DocumentItem[]
-  createdAt DateTime       @default(now())
+enum FolderType {
+  NORMAL
+  SPECIAL
 }
 
-model DocumentItem {
-  id        String            @id @default(uuid())
-  name      String
-  folderId  String
-  folder    Folder            @relation(fields: [folderId], references: [id], onDelete: Cascade)
-  versions  DocumentVersion[]
-  createdAt DateTime          @default(now())
+model Folder {
+  id         String     @id @default(uuid())
+  name       String
+  type       FolderType @default(NORMAL)
+  caseId     String
+  case       Case       @relation(fields: [caseId], references: [caseId], onDelete: Cascade)
+  parentId   String?
+  parent     Folder?    @relation("FolderToFolder", fields: [parentId], references: [id], onDelete: Cascade)
+  subFolders Folder[]   @relation("FolderToFolder")
+
+  documentVersions DocumentVersion[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([name, parentId, caseId]) // Ensures no duplicate folder in the same parent for a case
 }
 
 model DocumentVersion {
-  id              String       @id @default(uuid())
-  itemId          String
-  item            DocumentItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
-  fileUrl         String // URL or CID of the file
-  fileType        String
+  id              String   @id @default(uuid())
+  folderId        String
+  folder          Folder   @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  fileUrl         String? // CID
+  fileType        String?
   documentHash    String // Off-chain stored reference of the hash
-  uploadTimestamp DateTime     @default(now())
-  uploaderWallet  String // Address of the investigator
+  uploadTimestamp DateTime @default(now())
+  uploaderWallet  String
 }

@@ -34,8 +34,9 @@ export const CASE_CONTRACT_ABI = [
     "name": "addDocumentHash",
     "inputs": [
       { "type": "string", "name": "_caseId" },
-      { "type": "string", "name": "_documentId" },
-      { "type": "string", "name": "_hash" }
+      { "type": "string", "name": "_documentPath" },
+      { "type": "string", "name": "_hash" },
+      { "type": "string", "name": "_cid" }
     ],
     "outputs": [],
     "stateMutability": "nonpayable"
@@ -52,7 +53,8 @@ export const CASE_CONTRACT_ABI = [
     "name": "CaseAdded",
     "inputs": [
       { "type": "address", "name": "investigator", "indexed": true },
-      { "type": "string", "name": "caseId", "indexed": true },
+      { "type": "string", "name": "caseId", "indexed": false },
+      { "type": "string", "name": "caseTitle", "indexed": false },
       { "type": "uint256", "name": "timestamp", "indexed": false }
     ],
     "anonymous": false
@@ -63,7 +65,7 @@ export const CASE_CONTRACT_ABI = [
     "inputs": [
       { "type": "address", "name": "investigator", "indexed": true },
       { "type": "address", "name": "from", "indexed": true },
-      { "type": "string", "name": "caseId", "indexed": true },
+      { "type": "string", "name": "caseId", "indexed": false },
       { "type": "uint256", "name": "timestamp", "indexed": false }
     ],
     "anonymous": false
@@ -73,9 +75,17 @@ export const CASE_CONTRACT_ABI = [
     "name": "DocumentHashAdded",
     "inputs": [
       { "type": "address", "name": "investigator", "indexed": true },
-      { "type": "string", "name": "caseId", "indexed": true },
-      { "type": "string", "name": "documentId", "indexed": true },
-      { "type": "string", "name": "hash", "indexed": false }
+      { "type": "string", "name": "caseId", "indexed": false },
+      { "type": "string", "name": "documentPath", "indexed": false },
+      {
+        "type": "tuple",
+        "name": "info",
+        "indexed": false,
+        "components": [
+          { "type": "string", "name": "hash" },
+          { "type": "string", "name": "cid" }
+        ]
+      }
     ],
     "anonymous": false
   }

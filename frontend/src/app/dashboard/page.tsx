@@ -1,15 +1,17 @@
 'use client';
 
 import { useSearchParams } from 'next/navigation';
-import { useState } from 'react';
-import { ChevronDown, ChevronRight, File, ShieldCheck, Clock, User, Link as LinkIcon, Plus, Folder as FolderIcon, Layers, FileUp, FolderPlus } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { ChevronDown, ChevronRight, File, ShieldCheck, ShieldAlert, Clock, User, Link as LinkIcon, Plus, Folder as FolderIcon, Layers, FileUp, FolderPlus, Download } from 'lucide-react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 // Shadcn UI Components
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { useCase, useCreateFolder, fetchSignedUrl } from '@/lib/apiHooks';
+import { useAccount } from 'wagmi';
 
-// Mock Types
 type DocumentVersion = {
   id: string;
   fileUrl: string;
@@ -19,106 +21,132 @@ type DocumentVersion = {
   uploaderWallet: string;
 };
 
-type DocumentItem = {
+// Represents a folder returned by Prisma
+type ApiFolder = {
   id: string;
-  type: 'item';
   name: string;
-  versions: DocumentVersion[];
+  type: 'NORMAL' | 'SPECIAL';
+  parentId: string | null;
+  documentVersions?: DocumentVersion[];
 };
 
-type FolderNode = {
+type TreeNode = {
   id: string;
-  type: 'folder';
+  type: 'folder' | 'item';
   name: string;
-  children: (FolderNode | DocumentItem)[];
+  children: TreeNode[];
+  versions?: DocumentVersion[];
 };
 
 export default function DashboardPage() {
   const searchParams = useSearchParams();
   const caseIdParam = searchParams.get('caseId');
+  const { address } = useAccount();
+
+  const { data: caseDataObj, isLoading, isError } = useCase(caseIdParam, address);
 
   const [selectedDoc, setSelectedDoc] = useState<DocumentVersion | null>(null);
 
-  // Dialog State
+  // Dialog State (Keeping UI state for "Create Folder" to show, but actual creation is via SC)
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [newFolderName, setNewFolderName] = useState('');
+  const [newFolderType, setNewFolderType] = useState<'NORMAL' | 'SPECIAL'>('NORMAL');
   const [activeParentId, setActiveParentId] = useState<string | null>(null);
+  const [redirectAfterCreate, setRedirectAfterCreate] = useState(false);
 
-  // Mock Root Data
-  const [caseData, setCaseData] = useState({
-    id: caseIdParam || 'case-1029',
-    title: 'Operation Alpha',
-    rootNodes: [
-      {
-        id: 'f-1',
-        type: 'folder',
-        name: 'Crime Scene Photos',
-        children: [
-          {
-            id: 'f-1-1',
-            type: 'folder',
-            name: 'Exterior Shots',
-            children: [
-              {
-                id: 'item-1',
-                type: 'item',
-                name: 'Broken Window',
-                versions: [
-                  {
-                    id: 'v-2',
-                    fileUrl: 'ipfs://.../window-v2-enhanced.jpg',
-                    fileType: 'image/jpeg',
-                    documentHash: '0x999abc456def...',
-                    uploadTimestamp: new Date().toISOString(),
-                    uploaderWallet: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
-                  },
-                  {
-                    id: 'v-1',
-                    fileUrl: 'ipfs://.../window-v1-original.jpg',
-                    fileType: 'image/jpeg',
-                    documentHash: '0x123abc456def...',
-                    uploadTimestamp: new Date(Date.now() - 86400000).toISOString(),
-                    uploaderWallet: '0x742d35Cc6634C0532925a3b844Bc454e4438f44e',
-                  }
-                ]
-              }
-            ]
-          } as FolderNode,
-          {
-            id: 'item-2',
-            type: 'item',
-            name: 'Blood Spatter Analysis',
-            versions: [
-              {
-                id: 'v-1',
-                fileUrl: 'ipfs://.../blood-report.pdf',
-                fileType: 'application/pdf',
-                documentHash: '0xabc123456def...',
-                uploadTimestamp: new Date(Date.now() - 172800000).toISOString(),
-                uploaderWallet: '0x111d35Cc6634C0532925a3b844Bc454e4438f11e',
-              }
-            ]
-          } as DocumentItem
-        ]
-      } as FolderNode,
-      {
-        id: 'f-2',
-        type: 'folder',
-        name: 'Interrogation Audio',
-        children: []
-      } as FolderNode
-    ] as (FolderNode | DocumentItem)[]
-  });
+  const router = useRouter();
 
-  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({
-    'cat-1': true,
-    'f-1': true,
-    'f-1-1': true
-  });
+  const createFolderMutation = useCreateFolder(address);
 
-  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({
-    'item-1': true,
-  });
+  // Verification States
+  const [isVerifying, setIsVerifying] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<'pending' | 'success' | 'failed' | null>(null);
+  const [verifiedFileUrl, setVerifiedFileUrl] = useState<string | null>(null);
+  const [verifiedFileType, setVerifiedFileType] = useState<string | null>(null);
+  const [calculatedHash, setCalculatedHash] = useState<string | null>(null);
+
+  const verifyDocument = async (doc: DocumentVersion) => {
+    setIsVerifying(true);
+    setVerificationStatus('pending');
+    setVerifiedFileUrl(null);
+    setVerifiedFileType(null);
+    setCalculatedHash(null);
+
+    try {
+      // Use signed URL for private file access instead of public gateway
+      const signedUrl = await fetchSignedUrl(doc.fileUrl, address);
+
+      const response = await fetch(signedUrl);
+      if (!response.ok) throw new Error("Failed to fetch IPFS payload");
+
+      const contentType = response.headers.get('Content-Type') || 'application/octet-stream';
+      setVerifiedFileType(contentType);
+
+      const arrayBuffer = await response.arrayBuffer();
+      const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+      const hashArray = Array.from(new Uint8Array(hashBuffer));
+      const hashHex = '0x' + hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+      setCalculatedHash(hashHex);
+
+      if (hashHex === doc.documentHash) {
+        setVerificationStatus('success');
+        const blob = new Blob([arrayBuffer], { type: contentType });
+        setVerifiedFileUrl(URL.createObjectURL(blob));
+      } else {
+        setVerificationStatus('failed');
+        // Still allow viewing the file even if hash mismatches
+        const blob = new Blob([arrayBuffer], { type: contentType });
+        setVerifiedFileUrl(URL.createObjectURL(blob));
+      }
+    } catch (err) {
+      console.error(err);
+      setVerificationStatus('failed');
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  const handleSelectDoc = (doc: DocumentVersion) => {
+    setSelectedDoc(doc);
+    verifyDocument(doc);
+  };
+
+  // Build tree from flat folders array
+  const rootNodes = useMemo(() => {
+    if (!caseDataObj || !caseDataObj.folders) return [];
+
+    const folderMap = new Map<string, TreeNode>();
+    const roots: TreeNode[] = [];
+
+    // Initialize all nodes
+    caseDataObj.folders.forEach((f: ApiFolder) => {
+      folderMap.set(f.id, {
+        id: f.id,
+        type: f.type === 'SPECIAL' ? 'item' : 'folder',
+        name: f.name,
+        children: [],
+        versions: f.documentVersions || []
+      });
+    });
+
+    // Link parents and children
+    caseDataObj.folders.forEach((f: ApiFolder) => {
+      const node = folderMap.get(f.id);
+      if (node) {
+        if (f.parentId && folderMap.has(f.parentId)) {
+          folderMap.get(f.parentId)!.children.push(node);
+        } else {
+          roots.push(node);
+        }
+      }
+    });
+
+    return roots;
+  }, [caseDataObj]);
+
+  const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
 
   const toggleFolder = (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
@@ -133,39 +161,37 @@ export default function DashboardPage() {
   const openFolderDialog = (parentId: string | null = null) => {
     setActiveParentId(parentId);
     setNewFolderName('');
+    setNewFolderType('NORMAL');
+    setRedirectAfterCreate(false);
     setIsDialogOpen(true);
   };
 
-  const submitCreateFolder = () => {
-    if (!newFolderName.trim()) return;
+  const openUploadDialog = (parentId: string) => {
+    setActiveParentId(parentId);
+    setNewFolderName('');
+    setNewFolderType('SPECIAL');
+    setRedirectAfterCreate(true);
+    setIsDialogOpen(true);
+  };
 
-    const newFolder: FolderNode = {
-      id: `f-${Date.now()}`,
-      type: 'folder',
-      name: newFolderName.trim(),
-      children: []
-    };
+  const submitCreateFolder = async () => {
+    if (!caseIdParam || !newFolderName.trim()) return;
 
-    if (activeParentId === null) {
-      setCaseData(prev => ({ ...prev, rootNodes: [...prev.rootNodes, newFolder] }));
-    } else {
-      // Deep update helper
-      const updateTree = (nodes: (FolderNode | DocumentItem)[]): (FolderNode | DocumentItem)[] => {
-        return nodes.map(node => {
-          if (node.type === 'folder') {
-            if (node.id === activeParentId) {
-              return { ...node, children: [...node.children, newFolder] };
-            }
-            return { ...node, children: updateTree(node.children) };
-          }
-          return node;
-        });
-      };
-      setCaseData(prev => ({ ...prev, rootNodes: updateTree(prev.rootNodes) }));
-      setExpandedFolders(prev => ({ ...prev, [activeParentId]: true }));
+    try {
+      const resp = await createFolderMutation.mutateAsync({
+        name: newFolderName.trim(),
+        type: newFolderType,
+        caseId: caseIdParam,
+        parentId: activeParentId
+      });
+      setIsDialogOpen(false);
+
+      if (redirectAfterCreate && resp.data?.id) {
+        router.push(`/case/${caseIdParam}/upload?folderId=${resp.data.id}`);
+      }
+    } catch (err: any) {
+      alert(err.message || 'Error creating folder');
     }
-
-    setIsDialogOpen(false);
   };
 
   if (!caseIdParam) {
@@ -177,8 +203,16 @@ export default function DashboardPage() {
     );
   }
 
+  if (isLoading) {
+    return <div className="p-8 text-zinc-400">Loading case file structure...</div>;
+  }
+
+  if (isError) {
+    return <div className="p-8 text-red-400">Error loading case data.</div>;
+  }
+
   // Recursive Component for rendering Folders and Items
-  const renderNode = (node: FolderNode | DocumentItem, depth: number = 0) => {
+  const renderNode = (node: TreeNode, depth: number = 0) => {
     if (node.type === 'folder') {
       const isExpanded = expandedFolders[node.id] ?? false;
       return (
@@ -203,14 +237,13 @@ export default function DashboardPage() {
               >
                 <FolderPlus className="w-3.5 h-3.5" />
               </button>
-              <Link
-                href={`/case/${caseData.id}/upload?folderId=${node.id}`}
-                onClick={(e) => e.stopPropagation()}
+              <button
+                onClick={(e) => { e.stopPropagation(); openUploadDialog(node.id); }}
                 className="p-1 hover:bg-zinc-700 rounded text-zinc-400 hover:text-white"
-                title="Upload Document"
+                title="Create a Document Folder & Upload"
               >
                 <FileUp className="w-3.5 h-3.5" />
-              </Link>
+              </button>
             </div>
           </div>
 
@@ -221,7 +254,7 @@ export default function DashboardPage() {
                 Empty Folder
               </div>
             ) : (
-              node.children.map(child => renderNode(child, depth + 1))
+              node.children.map((child: TreeNode) => renderNode(child, depth + 1))
             )}
           </CollapsibleContent>
         </Collapsible>
@@ -241,16 +274,27 @@ export default function DashboardPage() {
                 <Layers className="w-3.5 h-3.5 text-purple-400 mr-2 shrink-0" />
                 <span className="text-zinc-400 truncate text-[13px]">{node.name}</span>
               </div>
-              <span className="text-[10px] text-zinc-600 pr-2">{node.versions.length} vers</span>
+
+              <div className="flex items-center space-x-2 pr-2">
+                <span className="text-[10px] text-zinc-600">{node.versions?.length || 0} vers</span>
+                <Link
+                  href={`/case/${caseDataObj.caseId}/upload?folderId=${node.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="p-1 hover:bg-zinc-700 rounded text-zinc-400 opacity-0 group-hover:opacity-100 transition-opacity hover:text-white"
+                  title="Upload Document Version"
+                >
+                  <FileUp className="w-3.5 h-3.5" />
+                </Link>
+              </div>
             </div>
           </CollapsibleTrigger>
 
           <CollapsibleContent className="w-full relative py-1 data-closed:animate-collapsible-up data-open:animate-collapsible-down overflow-hidden">
             <div className="absolute left-6 top-0 bottom-0 w-px bg-zinc-800/30" style={{ left: `${(depth * 16) + 16}px` }}></div>
-            {node.versions.map((v, index) => (
+            {node.versions?.map((v, index) => (
               <button
                 key={v.id}
-                onClick={() => setSelectedDoc(v)}
+                onClick={() => handleSelectDoc(v)}
                 className={`w-full flex items-center pr-3 py-1.5 hover:bg-blue-500/10 transition-colors text-left relative ${selectedDoc?.id === v.id ? 'bg-blue-500/5 my-0.5 border-y border-blue-500/20' : ''}`}
                 style={{ paddingLeft: `${(depth + 1) * 16 + 24}px` }}
               >
@@ -279,8 +323,8 @@ export default function DashboardPage() {
         <div className="w-1/3 min-w-[360px] border border-zinc-800 rounded-xl bg-zinc-900/40 p-4 flex flex-col">
           <div className="flex items-center justify-between mb-6 pb-4 border-b border-zinc-800">
             <div>
-              <h3 className="font-semibold text-zinc-100">{caseData.title}</h3>
-              <p className="text-xs text-zinc-500 font-mono mt-1">{caseData.id}</p>
+              <h3 className="font-semibold text-zinc-100">{caseDataObj?.caseTitle || 'Loading...'}</h3>
+              <p className="text-xs text-zinc-500 font-mono mt-1">{caseDataObj?.caseId}</p>
             </div>
             <button
               onClick={() => openFolderDialog(null)}
@@ -292,12 +336,12 @@ export default function DashboardPage() {
 
           <div className="flex-1 overflow-y-auto pr-2 pb-4">
             <div className="space-y-1">
-              {caseData.rootNodes.length === 0 ? (
+              {rootNodes.length === 0 ? (
                 <div className="text-center p-8 border border-zinc-800/50 border-dashed rounded-lg bg-black/20 text-zinc-500 text-sm">
                   No folders created yet.<br />Click "Root Folder" to start.
                 </div>
               ) : (
-                caseData.rootNodes.map(node => renderNode(node, 0))
+                rootNodes.map(node => renderNode(node, 0))
               )}
             </div>
           </div>
@@ -310,24 +354,71 @@ export default function DashboardPage() {
               <div className="flex-1 border border-zinc-800 rounded-xl bg-zinc-900/40 flex items-center justify-center flex-col relative overflow-hidden group">
                 <div className="absolute top-4 right-4 z-10">
                   <div className="bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-full border border-zinc-700 text-xs text-zinc-300 shadow-xl">
-                    {selectedDoc.fileType}
+                    {verifiedFileType || 'Loading...'}
                   </div>
                 </div>
-                <File className="w-24 h-24 text-zinc-700 mb-6 group-hover:scale-110 transition-transform duration-500" />
-                <p className="text-zinc-500 text-sm">Media viewer initialized for multi-format playback.</p>
-                <a href="#" className="mt-4 text-xs text-blue-400 hover:text-blue-300 hover:underline flex items-center transition-colors">
-                  <LinkIcon className="w-3 h-3 mr-1" /> View source stream on IPFS
+                {isVerifying ? (
+                  <div className="flex flex-col items-center">
+                    <span className="w-10 h-10 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4"></span>
+                    <p className="text-zinc-400 text-sm">Downloading & Verifying from IPFS...</p>
+                  </div>
+                ) : verificationStatus === 'success' && verifiedFileUrl ? (
+                  verifiedFileType?.startsWith('image/') ? (
+                    <img src={verifiedFileUrl} alt="Evidence" className="max-w-full max-h-full object-contain" />
+                  ) : verifiedFileType?.startsWith('video/') ? (
+                    <video src={verifiedFileUrl} controls className="max-w-full max-h-full" />
+                  ) : verifiedFileType?.startsWith('audio/') ? (
+                    <audio src={verifiedFileUrl} controls className="w-full max-w-md" />
+                  ) : (
+                    <div className="flex flex-col items-center">
+                      <File className="w-24 h-24 text-zinc-700 mb-6" />
+                      <a href={verifiedFileUrl} download="evidence" className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors">
+                        <Download className="w-4 h-4 mr-2" /> Download Evidence File
+                      </a>
+                    </div>
+                  )
+                ) : verificationStatus === 'failed' && verifiedFileUrl ? (
+                  <div className="flex flex-col items-center w-full h-full">
+                    <div className="absolute top-4 left-4 z-10 bg-red-500/20 backdrop-blur-md px-3 py-1.5 rounded-full border border-red-500/30 text-xs text-red-400 shadow-xl flex items-center">
+                      <ShieldAlert className="w-3 h-3 mr-1.5" /> TAMPERED — Hash Mismatch
+                    </div>
+                    {verifiedFileType?.startsWith('image/') ? (
+                      <img src={verifiedFileUrl} alt="Evidence" className="max-w-full max-h-full object-contain" />
+                    ) : verifiedFileType?.startsWith('video/') ? (
+                      <video src={verifiedFileUrl} controls className="max-w-full max-h-full" />
+                    ) : verifiedFileType?.startsWith('audio/') ? (
+                      <audio src={verifiedFileUrl} controls className="w-full max-w-md" />
+                    ) : (
+                      <div className="flex flex-col items-center">
+                        <File className="w-24 h-24 text-red-700 mb-6" />
+                        <a href={verifiedFileUrl} download="evidence" className="flex items-center px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors">
+                          <Download className="w-4 h-4 mr-2" /> Download (Unverified)
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="flex flex-col items-center text-red-400">
+                    <ShieldAlert className="w-16 h-16 mb-4" />
+                    <p>Verification Failed or File Unreachable</p>
+                  </div>
+                )}
+
+                <a href={verifiedFileUrl || '#'} target="_blank" rel="noopener noreferrer" className="absolute bottom-4 left-4 text-xs text-blue-400 hover:text-blue-300 hover:underline flex items-center transition-colors">
+                  <LinkIcon className="w-3 h-3 mr-1" /> View source on IPFS
                 </a>
               </div>
 
-              <div className="border border-green-500/20 bg-gradient-to-br from-green-500/5 to-transparent rounded-xl p-6 shadow-lg">
+              <div className={`border ${verificationStatus === 'success' ? 'border-green-500/20 bg-gradient-to-br from-green-500/5 to-transparent' : verificationStatus === 'failed' ? 'border-red-500/20 bg-gradient-to-br from-red-500/5 to-transparent' : 'border-zinc-800/50 bg-zinc-900/40'} rounded-xl p-6 shadow-lg transition-colors duration-500`}>
                 <div className="flex items-center space-x-3 mb-6">
-                  <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center border border-green-500/20 shadow-inner">
-                    <ShieldCheck className="w-5 h-5 text-emerald-400" />
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center border shadow-inner ${verificationStatus === 'success' ? 'bg-green-500/10 border-green-500/20' : verificationStatus === 'failed' ? 'bg-red-500/10 border-red-500/20' : 'bg-zinc-800 border-zinc-700'}`}>
+                    {verificationStatus === 'success' ? <ShieldCheck className="w-5 h-5 text-emerald-400" /> : verificationStatus === 'failed' ? <ShieldAlert className="w-5 h-5 text-red-500" /> : <div className="w-5 h-5 border-2 border-zinc-500 border-t-zinc-300 rounded-full animate-spin"></div>}
                   </div>
                   <div>
-                    <h4 className="text-emerald-400 font-medium">Cryptographically Verified Hash</h4>
-                    <p className="text-xs text-zinc-400 mt-1">Matched against Ethereum smart contract ledger history.</p>
+                    <h4 className={`font-medium ${verificationStatus === 'success' ? 'text-emerald-400' : verificationStatus === 'failed' ? 'text-red-500' : 'text-zinc-400'}`}>
+                      {verificationStatus === 'success' ? 'Cryptographically Verified Hash' : verificationStatus === 'failed' ? 'Verification Failed - Hash Mismatch' : 'Verifying Evidence Integrity...'}
+                    </h4>
+                    <p className="text-xs text-zinc-400 mt-1">Matched actual downloaded payload against Ethereum smart contract ledger history.</p>
                   </div>
                 </div>
 
@@ -345,11 +436,27 @@ export default function DashboardPage() {
                     <p className="text-xs text-zinc-300">{new Date(selectedDoc.uploadTimestamp).toLocaleString()}</p>
                   </div>
                   <div className="col-span-2 bg-black/40 border border-zinc-800/50 rounded-lg p-4 transition-colors hover:border-zinc-700 group">
-                    <div className="flex items-center text-zinc-500 text-xs mb-2">
-                      <LinkIcon className="w-3 h-3 mr-1.5" /> Immutable SHA-256 Hash
+                    <div className="flex items-center justify-between text-zinc-500 text-xs mb-2">
+                      <span className="flex items-center"><LinkIcon className="w-3 h-3 mr-1.5" /> On-Chain Hash (Stored on Blockchain)</span>
+                      <span className="text-[10px] uppercase tracking-wider text-zinc-600">Immutable Record</span>
                     </div>
                     <p className="text-xs text-emerald-400/80 font-mono break-all group-hover:text-emerald-400 transition-colors">
                       {selectedDoc.documentHash}
+                    </p>
+                  </div>
+                  <div className={`col-span-2 bg-black/40 border rounded-lg p-4 transition-colors hover:border-zinc-700 group ${verificationStatus === 'success' ? 'border-green-500/30' : verificationStatus === 'failed' ? 'border-red-500/30' : 'border-zinc-800/50'
+                    }`}>
+                    <div className="flex items-center justify-between text-zinc-500 text-xs mb-2">
+                      <span className="flex items-center"><ShieldCheck className="w-3 h-3 mr-1.5" /> Calculated Hash (From Downloaded File)</span>
+                      {verificationStatus === 'success' && <span className="text-[10px] uppercase tracking-wider text-emerald-500 font-semibold">✓ MATCH</span>}
+                      {verificationStatus === 'failed' && calculatedHash && <span className="text-[10px] uppercase tracking-wider text-red-500 font-semibold">✗ MISMATCH</span>}
+                      {!verificationStatus || verificationStatus === 'pending' && <span className="text-[10px] text-zinc-600">Computing...</span>}
+                    </div>
+                    <p className={`text-xs font-mono break-all transition-colors ${verificationStatus === 'success' ? 'text-emerald-400/80 group-hover:text-emerald-400' :
+                        verificationStatus === 'failed' ? 'text-red-400/80 group-hover:text-red-400' :
+                          'text-zinc-500'
+                      }`}>
+                      {calculatedHash || (isVerifying ? 'Downloading and computing SHA-256...' : '—')}
                     </p>
                   </div>
                 </div>
@@ -369,29 +476,44 @@ export default function DashboardPage() {
           <DialogHeader>
             <DialogTitle>Create New Folder</DialogTitle>
           </DialogHeader>
-          <div className="py-4">
-            <label className="text-sm text-zinc-400 mb-2 block">Folder Name</label>
-            <input
-              value={newFolderName}
-              onChange={(e) => setNewFolderName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') submitCreateFolder(); }}
-              autoFocus
-              className="w-full bg-black/50 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
-              placeholder="e.g. Suspect Interrogations"
-            />
+          <div className="py-4 space-y-4">
+            <div>
+              <label className="text-sm text-zinc-400 mb-2 block">Folder Name</label>
+              <input
+                value={newFolderName}
+                onChange={(e) => setNewFolderName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') submitCreateFolder(); }}
+                autoFocus
+                className="w-full bg-black/50 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                placeholder="e.g. Suspect Interrogations"
+              />
+            </div>
+            <div>
+              <label className="text-sm text-zinc-400 mb-2 block">Folder Type</label>
+              <select
+                value={newFolderType}
+                onChange={(e) => setNewFolderType(e.target.value as 'NORMAL' | 'SPECIAL')}
+                className="w-full bg-black/50 border border-zinc-700 rounded-md px-3 py-2 text-sm text-zinc-200 focus:outline-none focus:ring-1 focus:ring-blue-500 appearance-none"
+              >
+                <option value="NORMAL">Normal (Can contain subfolders)</option>
+                <option value="SPECIAL">Special (Only contains documents)</option>
+              </select>
+            </div>
           </div>
           <DialogFooter className="bg-transparent border-t-zinc-800">
             <button
               onClick={() => setIsDialogOpen(false)}
-              className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors"
+              disabled={createFolderMutation.isPending}
+              className="px-4 py-2 text-sm text-zinc-400 hover:text-zinc-200 transition-colors disabled:opacity-50"
             >
               Cancel
             </button>
             <button
               onClick={submitCreateFolder}
-              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md text-sm transition-colors"
+              disabled={createFolderMutation.isPending || !newFolderName.trim()}
+              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-md text-sm transition-colors disabled:opacity-50 flex items-center"
             >
-              Create Folder
+              {createFolderMutation.isPending ? 'Creating...' : 'Create Folder'}
             </button>
           </DialogFooter>
         </DialogContent>

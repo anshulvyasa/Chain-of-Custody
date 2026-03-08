@@ -4,6 +4,9 @@ import { useState } from 'react';
 import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { UploadCloud, File, AlertCircle, CheckCircle2, ArrowLeft, FileVideo } from 'lucide-react';
 import { useCaseContractActions } from '@/lib/hooks';
+import { useCreateUploadUrl, fetchFolderPath } from '@/lib/apiHooks';
+import { useConnection, usePublicClient } from 'wagmi';
+import { pinata } from '../../../../../config/pinata';
 
 export default function DocumentUploadPage() {
   const router = useRouter();
@@ -14,49 +17,76 @@ export default function DocumentUploadPage() {
   const folderId = searchParams.get('folderId') || 'root';
 
   const [file, setFile] = useState<File | null>(null);
-  const [status, setStatus] = useState<'idle' | 'checking' | 'uploading' | 'awaiting_wallet' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'checking' | 'uploading' | 'awaiting_wallet' | 'confirming' | 'success' | 'error'>('idle');
   const [txHash, setTxHash] = useState('');
   const [versionDetected, setVersionDetected] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { addDocumentHash } = useCaseContractActions();
+  const { address } = useConnection();
+  const publicClient = usePublicClient();
 
-  // Mock hash generator for the demo
-  const generateMockHash = () => {
-    return '0x' + Array.from({ length: 64 }, () => Math.floor(Math.random() * 16).toString(16)).join('');
+  // True browser-native SHA-256 hash generation
+  const calculateSHA256 = async (file: File): Promise<string> => {
+    const arrayBuffer = await file.arrayBuffer();
+    const hashBuffer = await crypto.subtle.digest('SHA-256', arrayBuffer);
+    const hashArray = Array.from(new Uint8Array(hashBuffer));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return '0x' + hashHex;
   };
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!file) return;
+    if (!file || !address) return;
 
     try {
       setStatus('checking');
-      await new Promise(resolve => setTimeout(resolve, 800)); // Simulate DB check
-
-      // Mock logic: randomly decide if we found an existing DocumentItem with the same name
-      const isExisting = Math.random() > 0.5;
-      setVersionDetected(isExisting);
+      const hashStr = await calculateSHA256(file);
 
       setStatus('uploading');
-      await new Promise(resolve => setTimeout(resolve, 1500)); // Simulate upload
+      const res = await useCreateUploadUrl(address);
+      const upload = await pinata.upload.private.file(file).url(res.url) as any;
+      const cid = upload.IpfsHash || upload.cid || upload.id || upload.name; // depending on SDK response structure
 
-      const docHash = generateMockHash();
-      const documentId = `doc-${Date.now()}`;
+      // Resolve the folderId UUID into a full path string for the smart contract
+      // e.g. "evidence/photos/crime-scene" instead of a raw UUID
+      const documentPath = folderId !== 'root'
+        ? await fetchFolderPath(folderId, address)
+        : folderId;
 
-      // Trigger Smart Contract Transaction
       setStatus('awaiting_wallet');
-      const tx = await addDocumentHash(caseId, documentId, docHash);
+      const tx = await addDocumentHash(
+        caseId,
+        documentPath,
+        hashStr,
+        cid
+      );
 
       setTxHash(tx);
+      setStatus('confirming');
+
+      if (!publicClient) throw new Error("Public client not initialized");
+
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: tx });
+
+      if (receipt.status === 'reverted') {
+        throw new Error("Transaction was reverted by the blockchain. You may not be assigned to this case.");
+      }
+
       setStatus('success');
 
-      // Redirect back after 3 seconds
       setTimeout(() => {
         router.push(`/dashboard?caseId=${caseId}`);
       }, 3000);
 
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      console.error("Upload Error:", error);
+      // Attempt to extract the revert reason if present in the error string
+      let msg = error.shortMessage || error.message || "Unknown transaction error.";
+      if (msg.includes("reverted")) {
+        msg = "Transaction Reverted: " + msg;
+      }
+      setErrorMessage(msg);
       setStatus('error');
     }
   };
@@ -158,9 +188,21 @@ export default function DocumentUploadPage() {
             </div>
 
             {status === 'error' && (
-              <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg text-sm flex items-start">
-                <AlertCircle className="w-5 h-5 mr-2 shrink-0" />
-                Transaction failed or rejected by wallet.
+              <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-lg text-sm flex flex-col items-start space-y-2">
+                <div className="flex items-center">
+                  <AlertCircle className="w-5 h-5 mr-2 shrink-0" />
+                  <span className="font-semibold">Transaction Failed</span>
+                </div>
+                <div className="text-xs text-red-300 break-words w-full">
+                  {errorMessage}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStatus('idle')}
+                  className="mt-2 text-xs bg-red-500/20 hover:bg-red-500/30 px-3 py-1.5 rounded transition-colors"
+                >
+                  Try Again
+                </button>
               </div>
             )}
 
@@ -176,6 +218,12 @@ export default function DocumentUploadPage() {
                 <span className="flex items-center">
                   <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin mr-2"></span>
                   Please confirm in wallet...
+                </span>
+              )}
+              {status === 'confirming' && (
+                <span className="flex items-center text-blue-200">
+                  <span className="w-4 h-4 border-2 border-blue-400/30 border-t-blue-400 rounded-full animate-spin mr-2"></span>
+                  Waiting for network confirmation...
                 </span>
               )}
             </button>

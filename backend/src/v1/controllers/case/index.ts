@@ -58,3 +58,5 @@ export const createCaseController = async (req: Request, res: Response) => {
         });
     }
 };
+
+export * from "./get";

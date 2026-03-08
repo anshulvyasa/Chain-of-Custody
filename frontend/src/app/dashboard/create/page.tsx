@@ -4,14 +4,18 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { ShieldAlert, Activity, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { useCaseContractActions } from '@/lib/hooks';
+import { usePublicClient } from 'wagmi';
 
 export default function CreateCasePage() {
   const router = useRouter();
   const [title, setTitle] = useState('');
   const [customId, setCustomId] = useState('');
-  const [status, setStatus] = useState<'idle' | 'awaiting_wallet' | 'success' | 'error'>('idle');
+  const [status, setStatus] = useState<'idle' | 'awaiting_wallet' | 'confirming' | 'success' | 'error'>('idle');
   const [txHash, setTxHash] = useState('');
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
   const { createNewCase } = useCaseContractActions();
+  const publicClient = usePublicClient();
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,6 +30,16 @@ export default function CreateCasePage() {
       const tx = await createNewCase(title, finalCaseId);
 
       setTxHash(tx);
+      setStatus('confirming');
+
+      if (!publicClient) throw new Error("Public client not initialized");
+
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: tx });
+
+      if (receipt.status === 'reverted') {
+        throw new Error("Transaction was reverted by the blockchain. You may not be authorized to create cases.");
+      }
+
       setStatus('success');
 
       // Redirect to the new case dashboard after a short delay
@@ -33,8 +47,13 @@ export default function CreateCasePage() {
         router.push(`/dashboard?caseId=${finalCaseId}`);
       }, 3000);
 
-    } catch (error) {
-      console.error(error);
+    } catch (error: any) {
+      console.error("Create Case Error:", error);
+      let msg = error.shortMessage || error.message || "Unknown transaction error.";
+      if (msg.includes("reverted")) {
+        msg = "Transaction Reverted: " + msg;
+      }
+      setErrorMessage(msg);
       setStatus('error');
     }
   };
@@ -101,9 +120,21 @@ export default function CreateCasePage() {
             </div>
 
             {status === 'error' && (
-              <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-3 rounded-lg text-sm flex items-center">
-                <Activity className="w-4 h-4 mr-2 shrink-0" />
-                Transaction failed. Please ensure your wallet has sufficient test ETH and you are an Admin.
+              <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-lg text-sm flex flex-col items-start space-y-2">
+                <div className="flex items-center">
+                  <Activity className="w-5 h-5 mr-2 shrink-0" />
+                  <span className="font-semibold">Transaction Failed</span>
+                </div>
+                <div className="text-xs text-red-300 break-words w-full">
+                  {errorMessage}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setStatus('idle')}
+                  className="mt-2 text-xs bg-red-500/20 hover:bg-red-500/30 px-3 py-1.5 rounded transition-colors self-start"
+                >
+                  Try Again
+                </button>
               </div>
             )}
 
@@ -117,6 +148,12 @@ export default function CreateCasePage() {
                 <span className="flex items-center">
                   <span className="w-4 h-4 border-2 border-white/20 border-t-white rounded-full animate-spin mr-2"></span>
                   Please confirm in wallet...
+                </span>
+              )}
+              {status === 'confirming' && (
+                <span className="flex items-center text-blue-200">
+                  <span className="w-4 h-4 border-2 border-blue-400/30 border-t-blue-400 rounded-full animate-spin mr-2"></span>
+                  Waiting for network confirmation...
                 </span>
               )}
             </button>

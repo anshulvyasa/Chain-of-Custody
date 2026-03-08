@@ -4,6 +4,7 @@ import { useAccount, useConnection } from 'wagmi';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useIsInvestigator } from '@/lib/hooks';
+import { useAllCases } from '@/lib/apiHooks';
 import { Folder, ShieldAlert, Search, Plus } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Link from 'next/link';
@@ -16,6 +17,7 @@ export default function DashboardLayout({
 
   const { address, isConnected, isConnecting, isReconnecting } = useConnection();
   const { data: isInvestigator, isLoading: isInvestigatorLoading } = useIsInvestigator();
+  const { data: casesData = [], isLoading: isCasesLoading } = useAllCases(address);
   const router = useRouter();
 
   const [isMounted, setIsMounted] = useState<boolean>(false);
@@ -34,18 +36,18 @@ export default function DashboardLayout({
 
     const f = async () => {
 
-      const response = await fetch(
-        "http://localhost:5000/api/v1/investigator/investigator-check-and-create",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            walletAddress: address,
-          }),
-        }
-      );
+      // const response = await fetch(
+      //   "http://localhost:5000/api/v1/investigator/investigator-check-and-create",
+      //   {
+      //     method: "POST",
+      //     headers: {
+      //       "Content-Type": "application/json",
+      //     },
+      //     body: JSON.stringify({
+      //       walletAddress: address,
+      //     }),
+      //   }
+      // );
     }
 
     f();
@@ -73,12 +75,6 @@ export default function DashboardLayout({
     );
   }
 
-  const mockCases = [
-    { id: 'case-1029', title: 'Operation Alpha' },
-    { id: 'case-1033', title: 'Financial Fraud 24X' },
-    { id: 'case-1045', title: 'Digital Asset Theft' },
-  ];
-
   return (
     <div className="flex h-screen bg-zinc-950 text-white overflow-hidden">
       {/* Sidebar */}
@@ -103,14 +99,16 @@ export default function DashboardLayout({
             </Link>
           </div>
           <nav className="space-y-1">
-            {mockCases.map((c) => (
+            {isCasesLoading ? (
+              <div className="text-xs text-zinc-500 py-2">Loading cases...</div>
+            ) : casesData.map((c: any) => (
               <Link
-                key={c.id}
-                href={`/dashboard?caseId=${c.id}`}
+                key={c.caseId}
+                href={`/dashboard?caseId=${c.caseId}`}
                 className="flex items-center space-x-3 px-3 py-2 rounded-md hover:bg-zinc-800 transition-colors text-sm text-zinc-300"
               >
                 <Folder className="w-4 h-4 text-zinc-500" />
-                <span>{c.title}</span>
+                <span className="truncate">{c.caseTitle}</span>
               </Link>
             ))}
           </nav>
