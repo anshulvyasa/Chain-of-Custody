@@ -5,6 +5,7 @@ import { useState, useMemo } from 'react';
 import { ChevronDown, ChevronRight, File, ShieldCheck, ShieldAlert, Clock, User, Link as LinkIcon, Plus, Folder as FolderIcon, Layers, FileUp, FolderPlus, Download } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
+import DocumentPreview from '@/components/DocumentPreview';
 
 // Shadcn UI Components
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -363,39 +364,13 @@ export default function DashboardPage() {
                     <p className="text-zinc-400 text-sm">Downloading & Verifying from IPFS...</p>
                   </div>
                 ) : verificationStatus === 'success' && verifiedFileUrl ? (
-                  verifiedFileType?.startsWith('image/') ? (
-                    <img src={verifiedFileUrl} alt="Evidence" className="max-w-full max-h-full object-contain" />
-                  ) : verifiedFileType?.startsWith('video/') ? (
-                    <video src={verifiedFileUrl} controls className="max-w-full max-h-full" />
-                  ) : verifiedFileType?.startsWith('audio/') ? (
-                    <audio src={verifiedFileUrl} controls className="w-full max-w-md" />
-                  ) : (
-                    <div className="flex flex-col items-center">
-                      <File className="w-24 h-24 text-zinc-700 mb-6" />
-                      <a href={verifiedFileUrl} download="evidence" className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors">
-                        <Download className="w-4 h-4 mr-2" /> Download Evidence File
-                      </a>
-                    </div>
-                  )
+                  <DocumentPreview url={verifiedFileUrl} contentType={verifiedFileType} />
                 ) : verificationStatus === 'failed' && verifiedFileUrl ? (
-                  <div className="flex flex-col items-center w-full h-full">
+                  <div className="relative w-full h-full">
                     <div className="absolute top-4 left-4 z-10 bg-red-500/20 backdrop-blur-md px-3 py-1.5 rounded-full border border-red-500/30 text-xs text-red-400 shadow-xl flex items-center">
                       <ShieldAlert className="w-3 h-3 mr-1.5" /> TAMPERED — Hash Mismatch
                     </div>
-                    {verifiedFileType?.startsWith('image/') ? (
-                      <img src={verifiedFileUrl} alt="Evidence" className="max-w-full max-h-full object-contain" />
-                    ) : verifiedFileType?.startsWith('video/') ? (
-                      <video src={verifiedFileUrl} controls className="max-w-full max-h-full" />
-                    ) : verifiedFileType?.startsWith('audio/') ? (
-                      <audio src={verifiedFileUrl} controls className="w-full max-w-md" />
-                    ) : (
-                      <div className="flex flex-col items-center">
-                        <File className="w-24 h-24 text-red-700 mb-6" />
-                        <a href={verifiedFileUrl} download="evidence" className="flex items-center px-4 py-2 bg-red-600 hover:bg-red-500 text-white rounded-lg transition-colors">
-                          <Download className="w-4 h-4 mr-2" /> Download (Unverified)
-                        </a>
-                      </div>
-                    )}
+                    <DocumentPreview url={verifiedFileUrl} contentType={verifiedFileType} />
                   </div>
                 ) : (
                   <div className="flex flex-col items-center text-red-400">
@@ -453,8 +428,8 @@ export default function DashboardPage() {
                       {!verificationStatus || verificationStatus === 'pending' && <span className="text-[10px] text-zinc-600">Computing...</span>}
                     </div>
                     <p className={`text-xs font-mono break-all transition-colors ${verificationStatus === 'success' ? 'text-emerald-400/80 group-hover:text-emerald-400' :
-                        verificationStatus === 'failed' ? 'text-red-400/80 group-hover:text-red-400' :
-                          'text-zinc-500'
+                      verificationStatus === 'failed' ? 'text-red-400/80 group-hover:text-red-400' :
+                        'text-zinc-500'
                       }`}>
                       {calculatedHash || (isVerifying ? 'Downloading and computing SHA-256...' : '—')}
                     </p>
