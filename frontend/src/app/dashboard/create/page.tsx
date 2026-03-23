@@ -25,7 +25,7 @@ export default function CreateCasePage() {
       setStatus('awaiting_wallet');
 
       // Use provided ID or generate a unique one
-      const finalCaseId = customId.trim() || `case-${Date.now().toString().slice(-6)}`;
+      const finalCaseId = customId.trim() || `case-${Date.now().toString().slice(-6)}`; // it must be provided by users
 
       const tx = await createNewCase(title, finalCaseId);
 

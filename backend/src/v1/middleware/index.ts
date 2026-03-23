@@ -16,7 +16,6 @@ export const authorizeInvestigatorFromBlockchain = async (req: Request, res: Res
     const walletAddress = parsedHeader.data.walletAddress;
     const isInvestigator = await contract.getFunction("investigators")(walletAddress);
 
-    console.log("isInvestigator res is ", isInvestigator)
 
     if (!isInvestigator) {
         res.status(400).json({

@@ -28,90 +28,125 @@ export const setupBlockchainListeners = () => {
                 }
             });
             console.log(`Successfully created case ${caseId} from blockchain event.`);
+
+            await prisma.event.create({
+                data: {
+                    type: "CaseAdded",
+                    timestamp: new Date(Number(timestamp) * 1000),
+                    caseId: caseIdStr,
+                    initiatorAddress: investigatorStr,
+                    caseTitle: caseTitleStr
+                }
+            })
+
+            console.log("Succesfully Indexed Events Case Added")
+
         } catch (error) {
             console.error(`Error saving CaseAdded to DB:`, error);
         }
     });
 
     // Listen to DocumentHashAdded Event
-    contract.on("DocumentHashAdded", async (investigator, caseId, documentPath, info) => {
-        const docPathStr = String(documentPath);
-        const caseIdStr = String(caseId);
+    contract.on(
+        "DocumentHashAdded",
+        async (investigator, caseId, documentPath, timestamp, info) => {
 
-        console.log("RAW INFO RECEIVED:", info);
-        let hashStr = "";
-        let cidStr = "";
+            const docPathStr = String(documentPath);
+            const caseIdStr = String(caseId);
 
-        if (info && typeof info === 'object') {
-            hashStr = String(info.hash || info[0] || "");
-            cidStr = String(info.cid || info[1] || "");
-        }
+            let hashStr = "";
+            let cidStr = "";
 
-        const investigatorStr = String(investigator);
-
-        console.log(`Event DocumentHashAdded: Case ${caseIdStr}, Path ${docPathStr}, Hash ${hashStr}, CID ${cidStr} by ${investigatorStr}`);
-        try {
-            // documentId acts as the path, e.g., "window/glass/rear"
-            const segments = docPathStr.split("/").filter(Boolean);
-            if (segments.length === 0) return;
-
-            let currentParentId: string | null = null;
-            const foldersToCreate: any[] = [];
-
-            // 1. Fetch all existing folders for this case at once
-            const existingFolders = await prisma.folder.findMany({ where: { caseId: caseIdStr } });
-
-
-            // 2. Compute missing folders in-memory
-            for (let i = 0; i < segments.length; i++) {
-                const isSpecial = i === segments.length - 1;
-                const segmentName = segments[i];
-
-                const existingFolder = existingFolders.find(
-                    (f) => f.name === segmentName && f.parentId === currentParentId
-                );
-
-                if (existingFolder) {
-                    currentParentId = existingFolder.id;
-                } else {
-                    const newId = randomUUID();
-                    foldersToCreate.push({
-                        id: newId,
-                        name: segmentName,
-                        type: isSpecial ? "SPECIAL" : "NORMAL",
-                        caseId,
-                        parentId: currentParentId
-                    });
-                    currentParentId = newId;
-                }
+            if (info) {
+                hashStr = String(info.hash);
+                cidStr = String(info.cid);
             }
 
-            // 3. Batch execute DB creations
-            const operations: any[] = [];
+            const investigatorStr = String(investigator);
+            const ts = Number(timestamp);
 
-            if (foldersToCreate.length > 0) {
-                operations.push(prisma.folder.createMany({ data: foldersToCreate }));
-            }
+            console.log("DocumentedHashAdded Event Triggered");
 
-            if (currentParentId) {
-                operations.push(prisma.documentVersion.create({
+            try {
+
+                await prisma.event.create({
                     data: {
-                        folderId: currentParentId,
-                        documentHash: hashStr,
-                        fileUrl: cidStr,
-                        uploaderWallet: investigatorStr,
-                        uploadTimestamp: new Date(),
+                        type: "DocumentHashAdded",
+                        timestamp: new Date(ts * 1000),
+                        caseId: caseIdStr,
+                        initiatorAddress: investigatorStr,
+                        documentPath: docPathStr,
+                        hash: hashStr,
+                        cid: cidStr
                     }
-                }));
-            }
+                });
 
-            if (operations.length > 0) {
-                await prisma.$transaction(operations);
-                console.log(`Document version saved under path ${docPathStr} for case ${caseIdStr}.`);
-            }
+                const segments = docPathStr.split("/").filter(Boolean);
+                if (segments.length === 0) return;
 
-        } catch (error) {
-            console.error(`Error processing DocumentHashAdded event:`, error);
+                let currentParentId: string | null = null;
+                const foldersToCreate: any[] = [];
+
+                const existingFolders = await prisma.folder.findMany({
+                    where: { caseId: caseIdStr }
+                });
+
+                for (let i = 0; i < segments.length; i++) {
+
+                    const isSpecial = i === segments.length - 1;
+                    const segmentName = segments[i];
+
+                    const existingFolder = existingFolders.find(
+                        f => f.name === segmentName && f.parentId === currentParentId
+                    );
+
+                    if (existingFolder) {
+                        currentParentId = existingFolder.id;
+                    } else {
+
+                        const newId = randomUUID();
+
+                        foldersToCreate.push({
+                            id: newId,
+                            name: segmentName,
+                            type: isSpecial ? "SPECIAL" : "NORMAL",
+                            caseId: caseIdStr,
+                            parentId: currentParentId
+                        });
+
+                        currentParentId = newId;
+                    }
+                }
+
+                const operations: any[] = [];
+
+                if (foldersToCreate.length > 0) {
+                    operations.push(
+                        prisma.folder.createMany({ data: foldersToCreate })
+                    );
+                }
+
+                if (currentParentId) {
+                    operations.push(
+                        prisma.documentVersion.create({
+                            data: {
+                                folderId: currentParentId,
+                                documentHash: hashStr,
+                                fileUrl: cidStr,
+                                uploaderWallet: investigatorStr,
+                                uploadTimestamp: new Date(ts * 1000),
+                            }
+                        })
+                    );
+                }
+
+                if (operations.length > 0) {
+                    await prisma.$transaction(operations);
+                }
+
+            } catch (error) {
+                console.error("Error processing DocumentHashAdded:", error);
+            }
         }
-    });
+    );
 };

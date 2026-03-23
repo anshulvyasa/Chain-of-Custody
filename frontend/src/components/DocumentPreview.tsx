@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { File as FileIcon, Download, FileText, FileSpreadsheet, FileCode, Eye, Maximize2, Minimize2 } from 'lucide-react';
 
 type DocumentPreviewProps = {
@@ -296,90 +296,138 @@ function FallbackPreview({ url, label, contentType }: { url: string; label?: str
 // ─── Main DocumentPreview Component ─────────────────────────
 export default function DocumentPreview({ url, contentType, fileName }: DocumentPreviewProps) {
     const category = getPreviewCategory(contentType, url);
+    const containerRef = useRef<HTMLDivElement>(null);
+    const [isFullscreen, setIsFullscreen] = useState(false);
 
-    switch (category) {
-        case 'image':
-            return (
-                <div className="w-full h-full flex items-center justify-center p-4">
-                    <img
-                        src={url}
-                        alt={fileName || 'Evidence'}
-                        className="max-w-full max-h-full object-contain rounded-sm"
-                    />
-                </div>
-            );
+    const toggleFullscreen = useCallback(async () => {
+        if (!containerRef.current) return;
 
-        case 'video':
-            return (
-                <div className="w-full h-full flex items-center justify-center bg-black">
-                    <video
-                        src={url}
-                        controls
-                        className="max-w-full max-h-full"
-                        playsInline
-                    />
-                </div>
-            );
+        if (!document.fullscreenElement) {
+            try {
+                await containerRef.current.requestFullscreen();
+            } catch (err) {
+                console.error('Fullscreen request failed:', err);
+            }
+        } else {
+            await document.exitFullscreen();
+        }
+    }, []);
 
-        case 'audio':
-            return (
-                <div className="w-full h-full flex flex-col items-center justify-center space-y-6">
-                    <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30 flex items-center justify-center animate-pulse">
-                        <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500/30 to-blue-500/30 flex items-center justify-center">
-                            <div className="w-3 h-3 rounded-full bg-purple-400" />
-                        </div>
+    useEffect(() => {
+        const handleChange = () => {
+            setIsFullscreen(!!document.fullscreenElement);
+        };
+        document.addEventListener('fullscreenchange', handleChange);
+        return () => document.removeEventListener('fullscreenchange', handleChange);
+    }, []);
+
+    const renderContent = () => {
+        switch (category) {
+            case 'image':
+                return (
+                    <div className="w-full h-full flex items-center justify-center p-4">
+                        <img
+                            src={url}
+                            alt={fileName || 'Evidence'}
+                            className="max-w-full max-h-full object-contain rounded-sm"
+                        />
                     </div>
-                    <audio src={url} controls className="w-full max-w-md" />
-                    <p className="text-xs text-zinc-600">{getTypeLabel(contentType)}</p>
-                </div>
-            );
+                );
 
-        case 'pdf':
-            return (
-                <div className="w-full h-full flex flex-col">
-                    <object
-                        data={url}
-                        type="application/pdf"
-                        className="w-full flex-1"
-                    >
-                        <div className="w-full h-full flex flex-col items-center justify-center space-y-4">
-                            <FileText className="w-12 h-12 text-zinc-600" />
-                            <p className="text-sm text-zinc-400">PDF preview not supported in this browser</p>
-                            <a
-                                href={url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors text-sm"
-                            >
-                                <Eye className="w-4 h-4 mr-2" /> Open PDF
-                            </a>
+            case 'video':
+                return (
+                    <div className="w-full h-full flex items-center justify-center bg-black">
+                        <video
+                            src={url}
+                            controls
+                            className="max-w-full max-h-full"
+                            playsInline
+                        />
+                    </div>
+                );
+
+            case 'audio':
+                return (
+                    <div className="w-full h-full flex flex-col items-center justify-center space-y-6">
+                        <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 border border-purple-500/30 flex items-center justify-center animate-pulse">
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-br from-purple-500/30 to-blue-500/30 flex items-center justify-center">
+                                <div className="w-3 h-3 rounded-full bg-purple-400" />
+                            </div>
                         </div>
-                    </object>
-                </div>
-            );
+                        <audio src={url} controls className="w-full max-w-md" />
+                        <p className="text-xs text-zinc-600">{getTypeLabel(contentType)}</p>
+                    </div>
+                );
 
-        case 'text':
-            return <TextPreview url={url} />;
+            case 'pdf':
+                return (
+                    <div className="w-full h-full flex flex-col">
+                        <object
+                            data={url}
+                            type="application/pdf"
+                            className="w-full flex-1"
+                        >
+                            <div className="w-full h-full flex flex-col items-center justify-center space-y-4">
+                                <FileText className="w-12 h-12 text-zinc-600" />
+                                <p className="text-sm text-zinc-400">PDF preview not supported in this browser</p>
+                                <a
+                                    href={url}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    className="flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-colors text-sm"
+                                >
+                                    <Eye className="w-4 h-4 mr-2" /> Open PDF
+                                </a>
+                            </div>
+                        </object>
+                    </div>
+                );
 
-        case 'csv':
-            return <CsvPreview url={url} />;
+            case 'text':
+                return <TextPreview url={url} />;
 
-        case 'office':
-            return (
-                <FallbackPreview
-                    url={url}
-                    label="Office documents cannot be previewed inline. Download or open in a new tab."
-                    contentType={contentType}
-                />
-            );
+            case 'csv':
+                return <CsvPreview url={url} />;
 
-        default:
-            return (
-                <FallbackPreview
-                    url={url}
-                    label="Preview not available for this format"
-                    contentType={contentType}
-                />
-            );
-    }
+            case 'office':
+                return (
+                    <FallbackPreview
+                        url={url}
+                        label="Office documents cannot be previewed inline. Download or open in a new tab."
+                        contentType={contentType}
+                    />
+                );
+
+            default:
+                return (
+                    <FallbackPreview
+                        url={url}
+                        label="Preview not available for this format"
+                        contentType={contentType}
+                    />
+                );
+        }
+    };
+
+    return (
+        <div
+            ref={containerRef}
+            className={`relative w-full h-full ${isFullscreen ? 'bg-zinc-950' : ''}`}
+        >
+            {/* Floating Fullscreen Toolbar */}
+            <div className={`absolute top-3 right-3 z-50 flex items-center transition-opacity ${isFullscreen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>
+                <button
+                    onClick={toggleFullscreen}
+                    className="p-2 bg-black/70 hover:bg-black/90 backdrop-blur-md border border-zinc-700/50 rounded-lg text-zinc-300 hover:text-white transition-all shadow-xl hover:shadow-2xl hover:scale-105"
+                    title={isFullscreen ? 'Exit fullscreen' : 'Enter fullscreen'}
+                >
+                    {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+                </button>
+            </div>
+
+            {/* Content */}
+            {renderContent()}
+        </div>
+    );
 }
+

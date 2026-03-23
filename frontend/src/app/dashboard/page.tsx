@@ -2,7 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useState, useMemo } from 'react';
-import { ChevronDown, ChevronRight, File, ShieldCheck, ShieldAlert, Clock, User, Link as LinkIcon, Plus, Folder as FolderIcon, Layers, FileUp, FolderPlus, Download } from 'lucide-react';
+import { ChevronDown, ChevronRight, File, ShieldCheck, ShieldAlert, Clock, User, Link as LinkIcon, Plus, Folder as FolderIcon, Layers, FileUp, FolderPlus, Download, ExternalLink } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import DocumentPreview from '@/components/DocumentPreview';
@@ -11,7 +11,7 @@ import DocumentPreview from '@/components/DocumentPreview';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { useCase, useCreateFolder, fetchSignedUrl } from '@/lib/apiHooks';
-import { useAccount } from 'wagmi';
+import { useAccount, useConnection } from 'wagmi';
 
 type DocumentVersion = {
   id: string;
@@ -42,7 +42,7 @@ type TreeNode = {
 export default function DashboardPage() {
   const searchParams = useSearchParams();
   const caseIdParam = searchParams.get('caseId');
-  const { address } = useAccount();
+  const { address } = useConnection();
 
   const { data: caseDataObj, isLoading, isError } = useCase(caseIdParam, address);
 
@@ -148,16 +148,6 @@ export default function DashboardPage() {
 
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
-
-  const toggleFolder = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setExpandedFolders(prev => ({ ...prev, [id]: !prev[id] }));
-  };
-
-  const toggleItem = (id: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setExpandedItems(prev => ({ ...prev, [id]: !prev[id] }));
-  };
 
   const openFolderDialog = (parentId: string | null = null) => {
     setActiveParentId(parentId);
@@ -379,9 +369,16 @@ export default function DashboardPage() {
                   </div>
                 )}
 
-                <a href={verifiedFileUrl || '#'} target="_blank" rel="noopener noreferrer" className="absolute bottom-4 left-4 text-xs text-blue-400 hover:text-blue-300 hover:underline flex items-center transition-colors">
-                  <LinkIcon className="w-3 h-3 mr-1" /> View source on IPFS
-                </a>
+                <div className="absolute bottom-4 left-4 z-10 flex items-center space-x-4">
+                  <a
+                    href={`/view?caseId=${caseIdParam}&docId=${selectedDoc.id}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs text-emerald-400 hover:text-emerald-300 hover:underline flex items-center transition-colors"
+                  >
+                    <ExternalLink className="w-3 h-3 mr-1" /> Open in new tab
+                  </a>
+                </div>
               </div>
 
               <div className={`border ${verificationStatus === 'success' ? 'border-green-500/20 bg-gradient-to-br from-green-500/5 to-transparent' : verificationStatus === 'failed' ? 'border-red-500/20 bg-gradient-to-br from-red-500/5 to-transparent' : 'border-zinc-800/50 bg-zinc-900/40'} rounded-xl p-6 shadow-lg transition-colors duration-500`}>

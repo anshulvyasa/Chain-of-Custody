@@ -46,6 +46,7 @@ contract Case is Investigator {
         address indexed investigator,
         string caseId,
         string documentPath,
+        uint timestamp,
         DocumentInfo info
     );
 
@@ -112,6 +113,7 @@ contract Case is Investigator {
             msg.sender,
             _caseId,
             _documentPath,
+            block.timestamp,
             DocumentInfo(_hash, _cid)
         );
     }

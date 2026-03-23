@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 
 // Base URL for API requests
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000/api/v1';
@@ -34,6 +34,65 @@ export function useAllCases(address: string | undefined) {
       return data.data;
     },
     enabled: !!address,
+  });
+}
+
+export interface EventFilterParams {
+  type?: string
+  caseId?: string
+  initiatorAddress?: string
+  caseTitle?: string
+  involvedInvestigator?: string
+  documentPath?: string
+  hash?: string
+  cid?: string
+}
+
+export type EventItem = {
+  id: string
+  type: string
+  timestamp: string
+  initiatorAddress: string
+  caseId: string
+  caseTitle?: string | null
+  involvedInvestigator?: string | null
+  documentPath?: string | null
+  hash?: string | null
+  cid?: string | null
+}
+
+export function useEvents(
+  page: number,
+  recordsRequired: number,
+  filters: EventFilterParams,
+  address: string | undefined
+) {
+  return useQuery({
+    queryKey: ['events', page, recordsRequired, filters, address],
+    queryFn: async () => {
+      const res = await fetch(`${BACKEND_URL}/event/get`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          walletAddress: address || ''
+        },
+        body: JSON.stringify({
+          page,
+          records_required: recordsRequired,
+          filters,
+        }),
+      });
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Failed to fetch events: ${text}`);
+      }
+
+      const data = await res.json();
+      return (data.data ?? []) as EventItem[];
+    },
+    placeholderData: keepPreviousData,
+    staleTime: 1000 * 15,
   });
 }
 
@@ -105,4 +164,25 @@ export async function fetchSignedUrl(cid: string, address: string | undefined): 
   const data = await res.json();
   if (!res.ok) throw new Error(data.message || 'Failed to get signed URL');
   return data.url;
+}
+
+
+export function useEventById(id: string, address: string | undefined) {
+  return useQuery({
+    queryKey: ['event', id, address],
+    queryFn: async () => {
+      const res = await fetch(`${BACKEND_URL}/event/${id}`, {
+        headers: {
+          'walletAddress': address || '',
+        },
+      });
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`Failed to fetch event: ${text}`);
+      }
+      const data = await res.json();
+      return (data.data ?? null) as EventItem | null;
+    },
+    enabled: !!id,
+  });
 }

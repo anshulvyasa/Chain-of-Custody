@@ -13,10 +13,12 @@ datasource db {
 }
 
 model Investigator {
-  walletAddress String  @id
-  name          String?
-  badgeNumber   String?
-  casesCreated  Case[]
+  walletAddress    String   @id
+  name             String?
+  badgeNumber      String?
+  casesCreated     Case[]
+  events           Event[] @relation("ActionInitiator")
+  timesAddedToCase Event[] @relation("AddedTarget")
 }
 
 model Case {
@@ -26,6 +28,7 @@ model Case {
   createdByWallet String
   createdBy       Investigator @relation(fields: [createdByWallet], references: [walletAddress])
   folders         Folder[]
+  events          Event[]
 }
 
 enum FolderType {
@@ -59,4 +62,34 @@ model DocumentVersion {
   documentHash    String // Off-chain stored reference of the hash
   uploadTimestamp DateTime @default(now())
   uploaderWallet  String
+}
+
+enum EventType {
+  CaseAdded
+  InvestigatorAddedToCase
+  DocumentHashAdded
+  NewInvestigatorAdded
+  RemoveExistingInvestigator
+  RemoveCompromizedInvestigator
+}
+
+model Event {
+  id        String    @id @default(uuid())
+  type      EventType
+  timestamp DateTime
+
+  caseId String
+  case   Case   @relation(fields: [caseId], references: [caseId])
+
+  initiatorAddress String
+  initiatorWallet  Investigator @relation("ActionInitiator", fields: [initiatorAddress], references: [walletAddress])
+
+  caseTitle String?
+
+  involvedInvestigator       String?
+  involvedInvestigatorWallet Investigator? @relation("AddedTarget", fields: [involvedInvestigator], references: [walletAddress])
+
+  documentPath String?
+  hash           String?
+  cid            String?
 }

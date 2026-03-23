@@ -75,6 +75,7 @@ export const CASE_CONTRACT_ABI = [
             { "type": "address", "name": "investigator", "indexed": true },
             { "type": "string", "name": "caseId", "indexed": false },
             { "type": "string", "name": "documentPath", "indexed": false },
+            { "type": "uint256", "name": "timestamp", "indexed": false },
             {
                 "type": "tuple",
                 "name": "info",
