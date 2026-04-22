@@ -176,4 +176,45 @@ export const setupBlockchainListeners = () => {
             }
         }
     );
+
+    // Listen to NewInvestigatorAdded Event
+    contract.on(
+        "NewInvestigatorAdded",
+        async (investigator, from, investigatorAuthority, timestamp) => {
+            const investigatorStr = String(investigator);
+            const fromStr = String(from);
+            const authorityMap = ["SPECIALADMIN", "ADMIN", "NORMAL"];
+            const authorityStr = authorityMap[Number(investigatorAuthority)] || "NORMAL";
+            const ts = Number(timestamp);
+
+            console.log(`Event NewInvestigatorAdded: ${investigatorStr} added by ${fromStr} with role ${authorityStr} at ${ts}`);
+
+            try {
+                await prisma.$transaction([
+                    prisma.investigator.upsert({
+                        where: { walletAddress: investigatorStr },
+                        update: { authority: authorityStr },
+                        create: { walletAddress: investigatorStr, authority: authorityStr }
+                    }),
+                    prisma.investigator.upsert({
+                        where: { walletAddress: fromStr },
+                        update: {},
+                        create: { walletAddress: fromStr }
+                    }),
+                    prisma.event.create({
+                        data: {
+                            type: "NewInvestigatorAdded",
+                            timestamp: new Date(ts * 1000),
+                            initiatorAddress: fromStr,
+                            involvedInvestigator: investigatorStr,
+                            authority: authorityStr
+                        }
+                    })
+                ]);
+                console.log("Successfully Indexed Event NewInvestigatorAdded");
+            } catch (error) {
+                console.error("Error processing NewInvestigatorAdded:", error);
+            }
+        }
+    );
 };

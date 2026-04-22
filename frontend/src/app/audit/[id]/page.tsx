@@ -2,7 +2,7 @@
 
 import { use, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useConnection } from 'wagmi';
+import { useAccount } from 'wagmi';
 import { ArrowLeft, Clock, Activity, FileText, UserCircle, Hash } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -14,7 +14,7 @@ import { useEventById } from '@/lib/apiHooks';
 export default function EventDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const router = useRouter();
   const { id } = use(params);
-  const { address } = useConnection();
+  const { address } = useAccount();
 
   const { data: event, isLoading, isError } = useEventById(id, address);
 

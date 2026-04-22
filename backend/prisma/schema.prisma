@@ -13,9 +13,10 @@ datasource db {
 }
 
 model Investigator {
-  walletAddress    String   @id
+  walletAddress    String  @id
   name             String?
   badgeNumber      String?
+  authority        String?
   casesCreated     Case[]
   events           Event[] @relation("ActionInitiator")
   timesAddedToCase Event[] @relation("AddedTarget")
@@ -79,8 +80,8 @@ model Event {
   type      EventType
   timestamp DateTime
 
-  caseId String
-  case   Case   @relation(fields: [caseId], references: [caseId])
+  caseId String?
+  case   Case?   @relation(fields: [caseId], references: [caseId])
 
   initiatorAddress String
   initiatorWallet  Investigator @relation("ActionInitiator", fields: [initiatorAddress], references: [walletAddress])
@@ -91,6 +92,7 @@ model Event {
   involvedInvestigatorWallet Investigator? @relation("AddedTarget", fields: [involvedInvestigator], references: [walletAddress])
 
   documentPath String?
-  hash           String?
-  cid            String?
+  hash         String?
+  cid          String?
+  authority    String?
 }

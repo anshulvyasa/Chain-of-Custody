@@ -5,7 +5,7 @@ import { useRouter, useSearchParams, useParams } from 'next/navigation';
 import { UploadCloud, File, AlertCircle, CheckCircle2, ArrowLeft, FileVideo } from 'lucide-react';
 import { useCaseContractActions } from '@/lib/hooks';
 import { useCreateUploadUrl, fetchFolderPath } from '@/lib/apiHooks';
-import { useConnection, usePublicClient } from 'wagmi';
+import { usePublicClient, useAccount } from 'wagmi';
 import { pinata } from '../../../../../config/pinata';
 
 export default function DocumentUploadPage() {
@@ -23,7 +23,7 @@ export default function DocumentUploadPage() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const { addDocumentHash } = useCaseContractActions();
-  const { address } = useConnection();
+  const { address } = useAccount();
   const publicClient = usePublicClient();
 
   // True browser-native SHA-256 hash generation

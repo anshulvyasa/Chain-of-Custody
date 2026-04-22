@@ -1,5 +1,6 @@
-import { useReadContract, useWriteContract, useAccount, useConnection } from 'wagmi';
+import { useReadContract, useWriteContract, useAccount, usePublicClient } from 'wagmi';
 import { CASE_CONTRACT_ABI, CONTRACT_ADDRESS } from './contracts';
+import { useQueryClient } from '@tanstack/react-query';
 
 export function useIsInvestigator() {
   const { address } = useAccount();
@@ -15,11 +16,9 @@ export function useIsInvestigator() {
   });
 }
 
-import { useQueryClient } from '@tanstack/react-query';
-
 export function useCaseContractActions() {
   const { writeContractAsync } = useWriteContract();
-  const { address } = useConnection();
+  const { address } = useAccount();
   const queryClient = useQueryClient();
 
   const accessDocument = async (caseId: string, documentPath: string) => {
@@ -63,4 +62,53 @@ export function useCaseContractActions() {
   };
 
   return { addDocumentHash, createNewCase, accessDocument };
+}
+
+export function useInvestigatorContractActions() {
+  const { writeContractAsync } = useWriteContract();
+  const publicClient = usePublicClient();
+
+  const addNewInvestigator = async (address: string, role: string) => {
+    const roleMap: Record<string, number> = {
+      "SPECIALADMIN": 0,
+      "ADMIN": 1,
+      "NORMAL": 2
+    };
+
+    const tx = await writeContractAsync({
+      address: CONTRACT_ADDRESS,
+      abi: CASE_CONTRACT_ABI,
+      functionName: 'addNewInvestigator',
+      args: [address, roleMap[role]],
+    });
+    if (publicClient) {
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+    }
+  };
+
+  const promoteToAdmin = async (address: string) => {
+    const tx = await writeContractAsync({
+      address: CONTRACT_ADDRESS,
+      abi: CASE_CONTRACT_ABI,
+      functionName: 'promoteToAdmin',
+      args: [address],
+    });
+    if (publicClient) {
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+    }
+  };
+
+  const promoteToSpecialAdmin = async (address: string) => {
+    const tx = await writeContractAsync({
+      address: CONTRACT_ADDRESS,
+      abi: CASE_CONTRACT_ABI,
+      functionName: 'promoteToSpecialAdmin',
+      args: [address],
+    });
+    if (publicClient) {
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+    }
+  };
+
+  return { addNewInvestigator, promoteToAdmin, promoteToSpecialAdmin };
 }

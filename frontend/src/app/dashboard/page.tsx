@@ -12,7 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { useCase, useCreateFolder, fetchFolderPath, fetchSignedUrl } from '@/lib/apiHooks';
 import { useCaseContractActions } from '@/lib/hooks';
-import { useConnection, usePublicClient } from 'wagmi';
+import { usePublicClient, useAccount } from 'wagmi';
 
 type DocumentVersion = {
   id: string;
@@ -43,7 +43,7 @@ type TreeNode = {
 export default function DashboardPage() {
   const searchParams = useSearchParams();
   const caseIdParam = searchParams.get('caseId');
-  const { address } = useConnection();
+  const { address } = useAccount();
 
   const { data: caseDataObj, isLoading, isError } = useCase(caseIdParam, address);
 

@@ -86,19 +86,25 @@ contract Investigator {
 
 
     function addNewInvestigator(
-        address _newInvestigator
+        address _newInvestigator,
+        InvestigatorAuthority _authority
     ) public OnlyAdminsInvestigator {
         require(!investigators[_newInvestigator].exist, "Already an investigator");
+        
+        InvestigatorData memory sender = investigators[msg.sender];
+        if (sender.investigatorAuthority == InvestigatorAuthority.ADMIN) {
+            require(_authority == InvestigatorAuthority.NORMAL, "Admins can only create NORMAL investigators");
+        }
 
         investigators[_newInvestigator] = InvestigatorData(
-            InvestigatorAuthority.NORMAL,
+            _authority,
             true
         );
 
         emit NewInvestigatorAdded(
             _newInvestigator,
             msg.sender,
-            InvestigatorAuthority.NORMAL,
+            _authority,
             block.timestamp
         );
     }

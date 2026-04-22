@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback } from 'react';
-import { useConnection } from 'wagmi';
+import { useAccount } from 'wagmi';
 import { Shield } from 'lucide-react';
 import { useEvents, EventFilterParams } from '@/lib/apiHooks';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -14,7 +14,7 @@ import { useEventFilters } from '@/components/events/EventFilterContext';
 const PAGE_SIZE = 25;
 
 export default function AuditLogPage() {
-  const { address } = useConnection();
+  const { address } = useAccount();
   
   // Use context for state to retain it across navigation
   const { filters, page, setFilters, setPage } = useEventFilters();
