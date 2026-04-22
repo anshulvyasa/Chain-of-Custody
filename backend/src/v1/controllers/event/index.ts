@@ -7,6 +7,7 @@ enum EventType {
     CaseAdded = "CaseAdded",
     InvestigatorAddedToCase = "InvestigatorAddedToCase",
     DocumentHashAdded = "DocumentHashAdded",
+    AccessDocument = "AccessDocument",
     NewInvestigatorAdded = "NewInvestigatorAdded",
     RemoveExistingInvestigator = "RemoveExistingInvestigator",
     RemoveCompromizedInvestigator = "RemoveCompromizedInvestigator"

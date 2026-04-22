@@ -149,4 +149,31 @@ export const setupBlockchainListeners = () => {
             }
         }
     );
+
+    // Listen to AccessDocument Event
+    contract.on(
+        "AccessDocument",
+        async (investigator, caseId, docuemntPath, timeStamp) => {
+            const caseIdStr = String(caseId);
+            const investigatorStr = String(investigator);
+            const docPathStr = String(docuemntPath);
+            const ts = Number(timeStamp);
+
+            try {
+                await prisma.event.create({
+                    data: {
+                        type: "AccessDocument" as any,
+                        timestamp: new Date(ts * 1000),
+                        caseId: caseIdStr,
+                        initiatorAddress: investigatorStr,
+                        documentPath: docPathStr,
+                    }
+                });
+
+                console.log(`Successfully indexed AccessDocument for ${caseIdStr} at ${docPathStr}`);
+            } catch (error) {
+                console.error("Error processing AccessDocument:", error);
+            }
+        }
+    );
 };

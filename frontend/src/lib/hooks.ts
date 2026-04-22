@@ -22,6 +22,16 @@ export function useCaseContractActions() {
   const { address } = useConnection();
   const queryClient = useQueryClient();
 
+  const accessDocument = async (caseId: string, documentPath: string) => {
+    const tx = await writeContractAsync({
+      address: CONTRACT_ADDRESS,
+      abi: CASE_CONTRACT_ABI,
+      functionName: 'accessDocument',
+      args: [caseId, documentPath],
+    });
+    return tx;
+  };
+
   const addDocumentHash = async (caseId: string, documentId: string, hash: string, cid: string) => {
     const tx = await writeContractAsync({
       address: CONTRACT_ADDRESS,
@@ -52,5 +62,5 @@ export function useCaseContractActions() {
     return tx;
   };
 
-  return { addDocumentHash, createNewCase };
+  return { addDocumentHash, createNewCase, accessDocument };
 }

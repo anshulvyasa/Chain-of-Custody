@@ -13,6 +13,7 @@ const EVENT_TYPES = [
   { value: 'CaseAdded', label: 'Case Added' },
   { value: 'InvestigatorAddedToCase', label: 'Investigator Added' },
   { value: 'DocumentHashAdded', label: 'Document Hash Added' },
+  { value: 'AccessDocument', label: 'Document Accessed' },
   { value: 'NewInvestigatorAdded', label: 'New Investigator' },
   { value: 'RemoveExistingInvestigator', label: 'Remove Investigator' },
   { value: 'RemoveCompromizedInvestigator', label: 'Remove Compromised' },

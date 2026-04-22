@@ -10,8 +10,9 @@ import DocumentPreview from '@/components/DocumentPreview';
 // Shadcn UI Components
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
-import { useCase, useCreateFolder, fetchSignedUrl } from '@/lib/apiHooks';
-import { useAccount, useConnection } from 'wagmi';
+import { useCase, useCreateFolder, fetchFolderPath, fetchSignedUrl } from '@/lib/apiHooks';
+import { useCaseContractActions } from '@/lib/hooks';
+import { useConnection, usePublicClient } from 'wagmi';
 
 type DocumentVersion = {
   id: string;
@@ -56,8 +57,10 @@ export default function DashboardPage() {
   const [redirectAfterCreate, setRedirectAfterCreate] = useState(false);
 
   const router = useRouter();
+  const publicClient = usePublicClient();
 
   const createFolderMutation = useCreateFolder(address);
+  const { accessDocument } = useCaseContractActions();
 
   // Verification States
   const [isVerifying, setIsVerifying] = useState(false);
@@ -108,9 +111,38 @@ export default function DashboardPage() {
     }
   };
 
-  const handleSelectDoc = (doc: DocumentVersion) => {
-    setSelectedDoc(doc);
-    verifyDocument(doc);
+  const handleSelectDoc = async (doc: DocumentVersion, folderId: string) => {
+    if (!caseIdParam || !address || !publicClient) {
+      setSelectedDoc(null);
+      setVerificationStatus(null);
+      setVerifiedFileUrl(null);
+      return;
+    }
+
+    setVerificationStatus('pending');
+    setVerifiedFileUrl(null);
+    setVerifiedFileType(null);
+    setCalculatedHash(null);
+
+    try {
+      const documentPath = await fetchFolderPath(folderId, address);
+      const tx = await accessDocument(caseIdParam, documentPath);
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: tx });
+
+      if (receipt.status === 'reverted') {
+        throw new Error('Document access transaction was reverted');
+      }
+
+      setSelectedDoc(doc);
+      await verifyDocument(doc);
+    } catch (err) {
+      console.error('Document access denied:', err);
+      setSelectedDoc(null);
+      setVerificationStatus(null);
+      setVerifiedFileUrl(null);
+      setVerifiedFileType(null);
+      setCalculatedHash(null);
+    }
   };
 
   // Build tree from flat folders array
@@ -285,7 +317,7 @@ export default function DashboardPage() {
             {node.versions?.map((v, index) => (
               <button
                 key={v.id}
-                onClick={() => handleSelectDoc(v)}
+                onClick={() => handleSelectDoc(v, node.id)}
                 className={`w-full flex items-center pr-3 py-1.5 hover:bg-blue-500/10 transition-colors text-left relative ${selectedDoc?.id === v.id ? 'bg-blue-500/5 my-0.5 border-y border-blue-500/20' : ''}`}
                 style={{ paddingLeft: `${(depth + 1) * 16 + 24}px` }}
               >

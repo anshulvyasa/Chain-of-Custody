@@ -4,6 +4,7 @@ import {
   ShieldAlert,
   Activity,
   FileSearch,
+  Eye,
   UserPlus,
   UserMinus,
   UserX,
@@ -35,6 +36,11 @@ const EVENT_CONFIG: Record<
     icon: FileSearch,
     color: 'bg-amber-500/15 text-amber-400 border-amber-500/25',
     label: 'Doc Hash Added',
+  },
+  AccessDocument: {
+    icon: Eye,
+    color: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/25',
+    label: 'Document Accessed',
   },
   NewInvestigatorAdded: {
     icon: UserPlus,

@@ -68,6 +68,7 @@ enum EventType {
   CaseAdded
   InvestigatorAddedToCase
   DocumentHashAdded
+  AccessDocument
   NewInvestigatorAdded
   RemoveExistingInvestigator
   RemoveCompromizedInvestigator
