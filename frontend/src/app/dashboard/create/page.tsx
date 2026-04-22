@@ -39,6 +39,9 @@ export default function CreateCasePage() {
       if (receipt.status === 'reverted') {
         throw new Error("Transaction was reverted by the blockchain. You may not be authorized to create cases.");
       }
+      if (receipt.logs.length === 0) {
+        throw new Error("Transaction succeeded but no events were emitted. Please make sure the smart contract is deployed on your running Anvil node and you have updated the contract address in your environment settings.");
+      }
 
       setStatus('success');
 

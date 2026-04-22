@@ -13,6 +13,7 @@ const geistMono = Geist_Mono({
 });
 
 import { Web3Provider } from "@/components/Web3Provider";
+import StoreProvider from "@/providers/store_provider";
 
 export const metadata: Metadata = {
   title: "Chain of Custody",
@@ -30,7 +31,9 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <Web3Provider>
-          {children}
+          <StoreProvider>
+            {children}
+          </StoreProvider>
         </Web3Provider>
       </body>
     </html>

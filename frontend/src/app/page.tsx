@@ -7,17 +7,20 @@ import { useAccount } from 'wagmi';
 import { motion } from 'framer-motion';
 import { Shield, FileSearch, Lock } from 'lucide-react';
 import { useIsInvestigator } from '@/lib/hooks';
+import { useInvestigatorAuthority } from '@/lib/redux/feature_hooks/investigator_authority';
 
 export default function LandingPage() {
   const { isConnected } = useAccount();
   const { data: isInvestigator, isLoading } = useIsInvestigator();
   const router = useRouter();
+  const { updateInvestigatorAuthority } = useInvestigatorAuthority();
 
-  console.log("dummy log");
 
   // Redirect to dashboard if they are connected and authorized
   useEffect(() => {
-    if (isConnected && isInvestigator) {
+    console.log("Is Invetigator is ", isInvestigator)
+    if (isConnected && isInvestigator && Array.isArray(isInvestigator) && isInvestigator.length == 2) {
+      updateInvestigatorAuthority({ idx: isInvestigator[0], exist: isInvestigator[1] })
       router.push('/dashboard');
     }
   }, [isConnected, isInvestigator, router]);

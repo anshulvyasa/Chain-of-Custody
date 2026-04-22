@@ -50,6 +50,13 @@ contract Case is Investigator {
         DocumentInfo info
     );
 
+    event AccessDocument(
+        address indexed investigator,
+        string caseId,
+        string docuemntPath,
+        uint timeStamp
+    );
+
     constructor(
         address[] memory _initialInvestgators
     ) Investigator(_initialInvestgators) {}
@@ -57,7 +64,7 @@ contract Case is Investigator {
     function createCase(
         CaseInfo memory currentCase,
         string memory caseId
-    ) public OnlyAdminInvestigator {
+    ) public OnlyAdminsInvestigator {
         caseToDetail[caseId] = currentCase;
         caseToInvestigator[caseId].add(msg.sender);
         investigatorToCases[msg.sender].add(caseId);
@@ -79,7 +86,7 @@ contract Case is Investigator {
     function addInvestigatorToCase(
         address _investigator,
         string memory _caseId
-    ) public OnlyAdminInvestigator {
+    ) public OnlyAdminsInvestigator {
         bool status = caseToInvestigator[_caseId].contains(msg.sender);
         require(
             status,
@@ -115,6 +122,23 @@ contract Case is Investigator {
             _documentPath,
             block.timestamp,
             DocumentInfo(_hash, _cid)
+        );
+    }
+
+    function accessDocument(
+        string memory _caseId,
+        string memory _docuemntPath
+    ) public {
+        require(
+            caseToInvestigator[_caseId].contains(msg.sender),
+            "You are not authorized to Access This Document"
+        );
+
+        emit AccessDocument(
+            msg.sender,
+            _caseId,
+            _docuemntPath,
+            block.timestamp
         );
     }
 
