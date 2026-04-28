@@ -26,6 +26,7 @@ contract Case is Investigator {
     mapping(address => EnumerableSet.StringSet) private investigatorToCases;
     mapping(string => mapping(string => DocumentInfo))
         private caseDocumentToHash;
+    mapping(string => mapping(address => EnumerableSet.StringSet)) private investigatorRestrictedPaths;
 
     // case events
     event CaseAdded(
@@ -55,6 +56,22 @@ contract Case is Investigator {
         string caseId,
         string docuemntPath,
         uint timeStamp
+    );
+
+    event InvestigatorPathRestricted(
+        address indexed investigator,
+        address indexed admin,
+        string caseId,
+        string documentPath,
+        uint timestamp
+    );
+
+    event InvestigatorPathUnrestricted(
+        address indexed investigator,
+        address indexed admin,
+        string caseId,
+        string documentPath,
+        uint timestamp
     );
 
     constructor(
@@ -138,6 +155,48 @@ contract Case is Investigator {
             msg.sender,
             _caseId,
             _docuemntPath,
+            block.timestamp
+        );
+    }
+
+    function restrictInvestigatorPath(
+        string memory _caseId,
+        address _investigator,
+        string memory _documentPath
+    ) public OnlyAdminsInvestigator {
+        require(
+            caseToInvestigator[_caseId].contains(_investigator),
+            "Investigator is not part of this case"
+        );
+
+        investigatorRestrictedPaths[_caseId][_investigator].add(_documentPath);
+
+        emit InvestigatorPathRestricted(
+            _investigator,
+            msg.sender,
+            _caseId,
+            _documentPath,
+            block.timestamp
+        );
+    }
+
+    function unrestrictInvestigatorPath(
+        string memory _caseId,
+        address _investigator,
+        string memory _documentPath
+    ) public OnlyAdminsInvestigator {
+        require(
+            caseToInvestigator[_caseId].contains(_investigator),
+            "Investigator is not part of this case"
+        );
+
+        investigatorRestrictedPaths[_caseId][_investigator].remove(_documentPath);
+
+        emit InvestigatorPathUnrestricted(
+            _investigator,
+            msg.sender,
+            _caseId,
+            _documentPath,
             block.timestamp
         );
     }

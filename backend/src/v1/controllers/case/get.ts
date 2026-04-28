@@ -27,12 +27,36 @@ export const getCaseController = async (req: Request, res: Response) => {
             });
         }
 
-        // We could restructure the flat folders array into a nested tree here, 
-        // or send it flat and let the frontend build the tree. 
-        // Sending flat is usually easier for React Query updates.
+        const folderMap = new Map<string, any>();
+        const roots: any[] = [];
+
+        caseData.folders.forEach(f => {
+            folderMap.set(f.id, {
+                id: f.id,
+                type: f.type === 'SPECIAL' ? 'item' : 'folder',
+                name: f.name,
+                children: [],
+                versions: f.documentVersions || []
+            });
+        });
+
+        caseData.folders.forEach(f => {
+            const node = folderMap.get(f.id);
+            if (f.parentId && folderMap.has(f.parentId)) {
+                folderMap.get(f.parentId).children.push(node);
+            } else {
+                roots.push(node);
+            }
+        });
+
+        const responseData = {
+            ...caseData,
+            foldersTree: roots
+        };
+
         return res.status(200).json({
             status: true,
-            data: caseData
+            data: responseData
         });
 
     } catch (error: any) {

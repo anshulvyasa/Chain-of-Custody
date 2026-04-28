@@ -145,38 +145,8 @@ export default function DashboardPage() {
     }
   };
 
-  // Build tree from flat folders array
-  const rootNodes = useMemo(() => {
-    if (!caseDataObj || !caseDataObj.folders) return [];
-
-    const folderMap = new Map<string, TreeNode>();
-    const roots: TreeNode[] = [];
-
-    // Initialize all nodes
-    caseDataObj.folders.forEach((f: ApiFolder) => {
-      folderMap.set(f.id, {
-        id: f.id,
-        type: f.type === 'SPECIAL' ? 'item' : 'folder',
-        name: f.name,
-        children: [],
-        versions: f.documentVersions || []
-      });
-    });
-
-    // Link parents and children
-    caseDataObj.folders.forEach((f: ApiFolder) => {
-      const node = folderMap.get(f.id);
-      if (node) {
-        if (f.parentId && folderMap.has(f.parentId)) {
-          folderMap.get(f.parentId)!.children.push(node);
-        } else {
-          roots.push(node);
-        }
-      }
-    });
-
-    return roots;
-  }, [caseDataObj]);
+  // Use tree from backend
+  const rootNodes: TreeNode[] = caseDataObj?.foldersTree || [];
 
   const [expandedFolders, setExpandedFolders] = useState<Record<string, boolean>>({});
   const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({});
