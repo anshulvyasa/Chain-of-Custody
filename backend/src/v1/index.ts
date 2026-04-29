@@ -8,6 +8,7 @@ import { authorizeInvestigatorFromBlockchain } from './middleware';
 
 
 import { setupBlockchainListeners } from '../listeners/blockchainEvents';
+import { onReconnect } from '../../configs/ethers';
 import pinataRoutes from './routes/pinata';
 
 dotenv.config();
@@ -18,6 +19,11 @@ app.use(express.json());
 
 // Initialize Blockchain listeners
 setupBlockchainListeners();
+onReconnect(() => {
+    console.log("Re-attaching blockchain listeners...");
+    setupBlockchainListeners();
+});
+
 
 app.use('/api/v1/case', authorizeInvestigatorFromBlockchain, caseRoutes);
 app.use('/api/v1/folder', authorizeInvestigatorFromBlockchain, folderRoutes);

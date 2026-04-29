@@ -69,6 +69,7 @@ model DocumentVersion {
 enum EventType {
   CaseAdded
   InvestigatorAddedToCase
+  InvestigatorRemovedFromCase
   DocumentHashAdded
   AccessDocument
   NewInvestigatorAdded

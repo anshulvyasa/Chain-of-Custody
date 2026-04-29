@@ -303,4 +303,59 @@ export const setupBlockchainListeners = () => {
             }
         }
     );
+    // Listen to InvestigatorAddedToCase Event
+    contract.on(
+        "InvestigatorAddedToCase",
+        async (investigator, from, caseId, timestamp) => {
+            const investigatorStr = String(investigator);
+            const fromStr = String(from);
+            const caseIdStr = String(caseId);
+            const ts = Number(timestamp);
+
+            console.log(`Event InvestigatorAddedToCase: ${investigatorStr} added to ${caseIdStr} by ${fromStr}`);
+
+            try {
+                await prisma.event.create({
+                    data: {
+                        type: "InvestigatorAddedToCase",
+                        timestamp: new Date(ts * 1000),
+                        caseId: caseIdStr,
+                        initiatorAddress: fromStr,
+                        involvedInvestigator: investigatorStr
+                    }
+                });
+                console.log("Successfully Indexed InvestigatorAddedToCase");
+            } catch (error) {
+                console.error("Error processing InvestigatorAddedToCase:", error);
+            }
+        }
+    );
+
+    // Listen to InvestigatorRemovedFromCase Event
+    contract.on(
+        "InvestigatorRemovedFromCase",
+        async (investigator, from, caseId, timestamp) => {
+            const investigatorStr = String(investigator);
+            const fromStr = String(from);
+            const caseIdStr = String(caseId);
+            const ts = Number(timestamp);
+
+            console.log(`Event InvestigatorRemovedFromCase: ${investigatorStr} removed from ${caseIdStr} by ${fromStr}`);
+
+            try {
+                await prisma.event.create({
+                    data: {
+                        type: "InvestigatorRemovedFromCase",
+                        timestamp: new Date(ts * 1000),
+                        caseId: caseIdStr,
+                        initiatorAddress: fromStr,
+                        involvedInvestigator: investigatorStr
+                    }
+                });
+                console.log("Successfully Indexed InvestigatorRemovedFromCase");
+            } catch (error) {
+                console.error("Error processing InvestigatorRemovedFromCase:", error);
+            }
+        }
+    );
 };

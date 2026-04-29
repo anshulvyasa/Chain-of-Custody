@@ -36,7 +36,8 @@ export default function DashboardPage() {
   useEffect(() => {
     setSignature(undefined);
     setTimestamp(undefined);
-  }, [caseIdParam]);
+    setSelectedDoc(null);
+  }, [caseIdParam, address]);
 
   const { data: caseDataObj, isLoading, isError } = useCase(caseIdParam, address, signature, timestamp);
 
@@ -253,7 +254,7 @@ export default function DashboardPage() {
               <Plus className="w-4 h-4" />
             </button>
           </div>
-          
+
           <div className="flex-1 overflow-auto p-2">
             <CaseTree
               nodes={rootNodes}

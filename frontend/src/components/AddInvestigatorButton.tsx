@@ -1,17 +1,27 @@
 'use client';
 
-import { useState } from 'react';
-import { useAppSelector } from '@/lib/redux/hook';
+import { useState, useMemo } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from '@/components/ui/dialog';
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from '@/components/ui/select';
 import { UserPlus, ShieldAlert, CheckCircle2 } from 'lucide-react';
 import { useAccount } from 'wagmi';
-import { useInvestigatorContractActions } from '@/lib/hooks';
+import { useInvestigatorContractActions, useIsInvestigator } from '@/lib/hooks';
 
 type InvestigatorType = "SPECIALADMIN" | "ADMIN" | "NORMAL";
 
 export default function AddInvestigatorButton() {
-  const investigatorAuthority = useAppSelector((state) => state.investigatorAuthority.investigatorAuthority);
+  const { data: isInvestigatorData } = useIsInvestigator();
+
+  const investigatorAuthority = useMemo(() => {
+    if (isInvestigatorData && Array.isArray(isInvestigatorData) && isInvestigatorData.length === 2 && isInvestigatorData[1]) {
+      const roleIdx = Number(isInvestigatorData[0]);
+      if (roleIdx === 0) return 'SPECIALADMIN';
+      if (roleIdx === 1) return 'ADMIN';
+      if (roleIdx === 2) return 'NORMAL';
+    }
+    return 'NONE';
+  }, [isInvestigatorData]);
+
   const [isOpen, setIsOpen] = useState(false);
   const [address, setAddress] = useState('');
   const [role, setRole] = useState<InvestigatorType>('NORMAL');
