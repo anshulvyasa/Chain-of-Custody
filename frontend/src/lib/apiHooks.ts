@@ -3,20 +3,24 @@ import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tansta
 // Base URL for API requests
 const BACKEND_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:5000/api/v1';
 
-export function useCase(caseId: string | null, address: string | undefined) {
+export function useCase(caseId: string | null, address: string | undefined, signature?: string, timestamp?: string) {
   return useQuery({
-    queryKey: ['caseStructure', caseId, address],
+    queryKey: ['caseStructure', caseId, address, signature, timestamp],
     queryFn: async () => {
-      const res = await fetch(`${BACKEND_URL}/case/${caseId}`, {
-        headers: {
-          'walletAddress': address || ''
-        }
-      });
+      const headers: Record<string, string> = {
+        'walletAddress': address || ''
+      };
+      if (signature && timestamp) {
+        headers['signature'] = signature;
+        headers['timestamp'] = timestamp;
+      }
+      
+      const res = await fetch(`${BACKEND_URL}/case/${caseId}`, { headers });
       if (!res.ok) throw new Error('Failed to fetch case data');
       const data = await res.json();
       return data.data;
     },
-    enabled: !!caseId && !!address,
+    enabled: !!caseId && !!address && !!signature && !!timestamp,
   });
 }
 

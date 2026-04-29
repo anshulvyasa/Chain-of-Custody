@@ -16,6 +16,20 @@ export function useIsInvestigator() {
   });
 }
 
+export function useBlockchainCases() {
+  const { address } = useAccount();
+
+  return useReadContract({
+    address: CONTRACT_ADDRESS,
+    abi: CASE_CONTRACT_ABI,
+    functionName: 'getCasesForInvestigator',
+    account: address,
+    query: {
+      enabled: !!address,
+    }
+  });
+}
+
 export function useCaseContractActions() {
   const { writeContractAsync } = useWriteContract();
   const { address } = useAccount();
@@ -57,11 +71,50 @@ export function useCaseContractActions() {
         caseId
       ],
     });
-    queryClient.invalidateQueries({ queryKey: ['cases'] });
     return tx;
   };
 
-  return { addDocumentHash, createNewCase, accessDocument };
+  const restrictInvestigatorPath = async (caseId: string, investigator: string, documentPath: string) => {
+    const tx = await writeContractAsync({
+      address: CONTRACT_ADDRESS,
+      abi: CASE_CONTRACT_ABI,
+      functionName: 'restrictInvestigatorPath',
+      args: [caseId, investigator, documentPath],
+    });
+    return tx;
+  };
+
+  const unrestrictInvestigatorPath = async (caseId: string, investigator: string, documentPath: string) => {
+    const tx = await writeContractAsync({
+      address: CONTRACT_ADDRESS,
+      abi: CASE_CONTRACT_ABI,
+      functionName: 'unrestrictInvestigatorPath',
+      args: [caseId, investigator, documentPath],
+    });
+    return tx;
+  };
+
+  const addInvestigatorToCase = async (caseId: string, investigator: string) => {
+    const tx = await writeContractAsync({
+      address: CONTRACT_ADDRESS,
+      abi: CASE_CONTRACT_ABI,
+      functionName: 'addInvestigatorToCase',
+      args: [investigator, caseId],
+    });
+    return tx;
+  };
+
+  const removeInvestigatorFromCase = async (caseId: string, investigator: string) => {
+    const tx = await writeContractAsync({
+      address: CONTRACT_ADDRESS,
+      abi: CASE_CONTRACT_ABI,
+      functionName: 'removeInvestigatorFromCase',
+      args: [investigator, caseId],
+    });
+    return tx;
+  };
+
+  return { addDocumentHash, createNewCase, accessDocument, restrictInvestigatorPath, unrestrictInvestigatorPath, addInvestigatorToCase, removeInvestigatorFromCase };
 }
 
 export function useInvestigatorContractActions() {

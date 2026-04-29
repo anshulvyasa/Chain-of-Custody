@@ -274,13 +274,7 @@ function FallbackPreview({ url, label, contentType }: { url: string; label?: str
                 <p className="text-sm text-zinc-400">{getTypeLabel(contentType ?? null)}</p>
                 {label && <p className="text-xs text-zinc-600">{label}</p>}
             </div>
-            <a
-                href={url}
-                download="evidence"
-                className="flex items-center px-5 py-2.5 bg-blue-600 hover:bg-blue-500 text-white rounded-lg transition-all text-sm shadow-lg shadow-blue-500/20 hover:shadow-blue-500/30"
-            >
-                <Download className="w-4 h-4 mr-2" /> Download File
-            </a>
+
             <a
                 href={url}
                 target="_blank"
@@ -412,7 +406,7 @@ export default function DocumentPreview({ url, contentType, fileName }: Document
     return (
         <div
             ref={containerRef}
-            className={`relative w-full h-full ${isFullscreen ? 'bg-zinc-950' : ''}`}
+            className={`relative group w-full h-full ${isFullscreen ? 'bg-zinc-950' : ''}`}
         >
             {/* Floating Fullscreen Toolbar */}
             <div className={`absolute top-3 right-3 z-50 flex items-center transition-opacity ${isFullscreen ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}>

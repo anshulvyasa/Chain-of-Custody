@@ -8,6 +8,8 @@ import {
   UserPlus,
   UserMinus,
   UserX,
+  Lock,
+  Unlock,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -56,6 +58,16 @@ const EVENT_CONFIG: Record<
     icon: UserX,
     color: 'bg-red-500/15 text-red-400 border-red-500/25',
     label: 'Compromised Removed',
+  },
+  InvestigatorPathRestricted: {
+    icon: Lock,
+    color: 'bg-red-500/15 text-red-400 border-red-500/25',
+    label: 'Path Restricted',
+  },
+  InvestigatorPathUnrestricted: {
+    icon: Unlock,
+    color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
+    label: 'Path Unrestricted',
   },
 };
 

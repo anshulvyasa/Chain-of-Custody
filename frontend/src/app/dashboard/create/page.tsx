@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ShieldAlert, Activity, CheckCircle2, ArrowLeft } from 'lucide-react';
 import { useCaseContractActions } from '@/lib/hooks';
 import { usePublicClient } from 'wagmi';
+import { useQueryClient } from '@tanstack/react-query';
 
 export default function CreateCasePage() {
   const router = useRouter();
@@ -16,6 +17,7 @@ export default function CreateCasePage() {
 
   const { createNewCase } = useCaseContractActions();
   const publicClient = usePublicClient();
+  const queryClient = useQueryClient();
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,6 +45,7 @@ export default function CreateCasePage() {
         throw new Error("Transaction succeeded but no events were emitted. Please make sure the smart contract is deployed on your running Anvil node and you have updated the contract address in your environment settings.");
       }
 
+      queryClient.invalidateQueries({ queryKey: ['readContract'] });
       setStatus('success');
 
       // Redirect to the new case dashboard after a short delay

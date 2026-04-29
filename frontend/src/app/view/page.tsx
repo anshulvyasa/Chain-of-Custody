@@ -167,16 +167,6 @@ function DocumentViewPageInner() {
                         Details
                     </button>
 
-                    {/* Download */}
-                    {verifiedFileUrl && (
-                        <a
-                            href={verifiedFileUrl}
-                            download={`evidence-${doc.id}`}
-                            className="flex items-center text-xs bg-blue-600 hover:bg-blue-500 text-white px-3 py-1.5 rounded-lg transition-colors shadow-lg shadow-blue-500/20"
-                        >
-                            <Download className="w-3.5 h-3.5 mr-1" /> Download
-                        </a>
-                    )}
                 </div>
             </header>
 

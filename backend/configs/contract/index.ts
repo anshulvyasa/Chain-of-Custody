@@ -1,3 +1,98 @@
+export const CONTRACT_ADDRESS = "0x5FbDB2315678afecb367f032d93F642f64180aa3";
+
+// export const CASE_CONTRACT_ABI = [
+//   {
+//     "type": "function",
+//     "name": "createCase",
+//     "inputs": [
+//       {
+//         "type": "tuple",
+//         "name": "currentCase",
+//         "components": [
+//           { "type": "string", "name": "caseTitle" },
+//           { "type": "uint256", "name": "createdAt" },
+//           { "type": "address", "name": "createdBy" }
+//         ]
+//       },
+//       { "type": "string", "name": "caseId" }
+//     ],
+//     "outputs": [],
+//     "stateMutability": "nonpayable"
+//   },
+//   {
+//     "type": "function",
+//     "name": "addInvestigatorToCase",
+//     "inputs": [
+//       { "type": "address", "name": "_investigator" },
+//       { "type": "string", "name": "_caseId" }
+//     ],
+//     "outputs": [],
+//     "stateMutability": "nonpayable"
+//   },
+//   {
+//     "type": "function",
+//     "name": "addDocumentHash",
+//     "inputs": [
+//       { "type": "string", "name": "_caseId" },
+//       { "type": "string", "name": "_documentPath" },
+//       { "type": "string", "name": "_hash" },
+//       { "type": "string", "name": "_cid" }
+//     ],
+//     "outputs": [],
+//     "stateMutability": "nonpayable"
+//   },
+//   {
+//     "type": "function",
+//     "name": "investigators",
+//     "inputs": [{ "type": "address", "name": "" }],
+//     "outputs": [{ "type": "bool", "name": "" }],
+//     "stateMutability": "view"
+//   },
+//   {
+//     "type": "event",
+//     "name": "CaseAdded",
+//     "inputs": [
+//       { "type": "address", "name": "investigator", "indexed": true },
+//       { "type": "string", "name": "caseId", "indexed": false },
+//       { "type": "string", "name": "caseTitle", "indexed": false },
+//       { "type": "uint256", "name": "timestamp", "indexed": false }
+//     ],
+//     "anonymous": false
+//   },
+//   {
+//     "type": "event",
+//     "name": "InvestigatorAddedToCase",
+//     "inputs": [
+//       { "type": "address", "name": "investigator", "indexed": true },
+//       { "type": "address", "name": "from", "indexed": true },
+//       { "type": "string", "name": "caseId", "indexed": false },
+//       { "type": "uint256", "name": "timestamp", "indexed": false }
+//     ],
+//     "anonymous": false
+//   },
+//   {
+//     "type": "event",
+//     "name": "DocumentHashAdded",
+//     "inputs": [
+//       { "type": "address", "name": "investigator", "indexed": true },
+//       { "type": "string", "name": "caseId", "indexed": false },
+//       { "type": "string", "name": "documentPath", "indexed": false },
+//       {
+//         "type": "tuple",
+//         "name": "info",
+//         "indexed": false,
+//         "components": [
+//           { "type": "string", "name": "hash" },
+//           { "type": "string", "name": "cid" }
+//         ]
+//       }
+//     ],
+//     "anonymous": false
+//   }
+// ] as const;
+
+
+
 export const CASE_CONTRACT_ABI = [
   {
     "type": "constructor",
@@ -136,6 +231,28 @@ export const CASE_CONTRACT_ABI = [
         "name": "",
         "type": "string[]",
         "internalType": "string[]"
+      },
+      {
+        "name": "",
+        "type": "tuple[]",
+        "internalType": "struct CaseInfo[]",
+        "components": [
+          {
+            "name": "caseTitle",
+            "type": "string",
+            "internalType": "string"
+          },
+          {
+            "name": "createdAt",
+            "type": "uint256",
+            "internalType": "uint256"
+          },
+          {
+            "name": "createdBy",
+            "type": "address",
+            "internalType": "address"
+          }
+        ]
       }
     ],
     "stateMutability": "view"
@@ -230,6 +347,70 @@ export const CASE_CONTRACT_ABI = [
         "name": "_investigators",
         "type": "address[]",
         "internalType": "address[]"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "removeInvestigatorFromCase",
+    "inputs": [
+      {
+        "name": "_investigator",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_caseId",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "restrictInvestigatorPath",
+    "inputs": [
+      {
+        "name": "_caseId",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "_investigator",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_documentPath",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
+    "name": "unrestrictInvestigatorPath",
+    "inputs": [
+      {
+        "name": "_caseId",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "_investigator",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_documentPath",
+        "type": "string",
+        "internalType": "string"
       }
     ],
     "outputs": [],
@@ -379,6 +560,80 @@ export const CASE_CONTRACT_ABI = [
   },
   {
     "type": "event",
+    "name": "InvestigatorPathRestricted",
+    "inputs": [
+      {
+        "name": "investigator",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "admin",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "caseId",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "documentPath",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "timestamp",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "InvestigatorPathUnrestricted",
+    "inputs": [
+      {
+        "name": "investigator",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "admin",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "caseId",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "documentPath",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
+      },
+      {
+        "name": "timestamp",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
     "name": "InvestigatorPromotedToAdmin",
     "inputs": [
       {
@@ -417,6 +672,37 @@ export const CASE_CONTRACT_ABI = [
         "type": "address",
         "indexed": true,
         "internalType": "address"
+      },
+      {
+        "name": "timestamp",
+        "type": "uint256",
+        "indexed": false,
+        "internalType": "uint256"
+      }
+    ],
+    "anonymous": false
+  },
+  {
+    "type": "event",
+    "name": "InvestigatorRemovedFromCase",
+    "inputs": [
+      {
+        "name": "investigator",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "from",
+        "type": "address",
+        "indexed": true,
+        "internalType": "address"
+      },
+      {
+        "name": "caseId",
+        "type": "string",
+        "indexed": false,
+        "internalType": "string"
       },
       {
         "name": "timestamp",

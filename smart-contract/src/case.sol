@@ -43,6 +43,13 @@ contract Case is Investigator {
         uint timestamp
     );
 
+    event InvestigatorRemovedFromCase(
+        address indexed investigator,
+        address indexed from,
+        string caseId,
+        uint timestamp
+    );
+
     event DocumentHashAdded(
         address indexed investigator,
         string caseId,
@@ -114,6 +121,30 @@ contract Case is Investigator {
         investigatorToCases[_investigator].add(_caseId);
 
         emit InvestigatorAddedToCase(
+            _investigator,
+            msg.sender,
+            _caseId,
+            block.timestamp
+        );
+    }
+
+    function removeInvestigatorFromCase(
+        address _investigator,
+        string memory _caseId
+    ) public OnlyAdminsInvestigator {
+        require(
+            caseToInvestigator[_caseId].contains(msg.sender),
+            "You are not allowed to remove the investigator from this case"
+        );
+        require(
+            caseToInvestigator[_caseId].contains(_investigator),
+            "Investigator is not part of this case"
+        );
+
+        caseToInvestigator[_caseId].remove(_investigator);
+        investigatorToCases[_investigator].remove(_caseId);
+
+        emit InvestigatorRemovedFromCase(
             _investigator,
             msg.sender,
             _caseId,
@@ -207,7 +238,12 @@ contract Case is Investigator {
         return caseToInvestigator[_caseId].values();
     }
 
-    function getCasesForInvestigator() public view returns (string[] memory) {
-        return investigatorToCases[msg.sender].values();
+    function getCasesForInvestigator() public view returns (string[] memory, CaseInfo[] memory) {
+        string[] memory caseIds = investigatorToCases[msg.sender].values();
+        CaseInfo[] memory caseInfos = new CaseInfo[](caseIds.length);
+        for(uint i = 0; i < caseIds.length; i++) {
+            caseInfos[i] = caseToDetail[caseIds[i]];
+        }
+        return (caseIds, caseInfos);
     }
 }

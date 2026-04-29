@@ -217,4 +217,90 @@ export const setupBlockchainListeners = () => {
             }
         }
     );
+
+    // Listen to InvestigatorPathRestricted Event
+    contract.on(
+        "InvestigatorPathRestricted",
+        async (investigator, admin, caseId, documentPath, timestamp) => {
+            const investigatorStr = String(investigator);
+            const adminStr = String(admin);
+            const caseIdStr = String(caseId);
+            const docPathStr = String(documentPath);
+            const ts = Number(timestamp);
+
+            console.log(`Event InvestigatorPathRestricted: ${investigatorStr} restricted from ${docPathStr} in case ${caseIdStr} by ${adminStr}`);
+
+            try {
+                await prisma.$transaction([
+                    prisma.investigatorRestrictedPath.upsert({
+                        where: {
+                            investigatorWallet_caseId_documentPath: {
+                                investigatorWallet: investigatorStr,
+                                caseId: caseIdStr,
+                                documentPath: docPathStr
+                            }
+                        },
+                        update: {},
+                        create: {
+                            investigatorWallet: investigatorStr,
+                            caseId: caseIdStr,
+                            documentPath: docPathStr
+                        }
+                    }),
+                    prisma.event.create({
+                        data: {
+                            type: "InvestigatorPathRestricted" as any,
+                            timestamp: new Date(ts * 1000),
+                            caseId: caseIdStr,
+                            initiatorAddress: adminStr,
+                            involvedInvestigator: investigatorStr,
+                            documentPath: docPathStr
+                        }
+                    })
+                ]);
+                console.log("Successfully Indexed InvestigatorPathRestricted");
+            } catch (error) {
+                console.error("Error processing InvestigatorPathRestricted:", error);
+            }
+        }
+    );
+
+    // Listen to InvestigatorPathUnrestricted Event
+    contract.on(
+        "InvestigatorPathUnrestricted",
+        async (investigator, admin, caseId, documentPath, timestamp) => {
+            const investigatorStr = String(investigator);
+            const adminStr = String(admin);
+            const caseIdStr = String(caseId);
+            const docPathStr = String(documentPath);
+            const ts = Number(timestamp);
+
+            console.log(`Event InvestigatorPathUnrestricted: ${investigatorStr} unrestricted from ${docPathStr} in case ${caseIdStr} by ${adminStr}`);
+
+            try {
+                await prisma.$transaction([
+                    prisma.investigatorRestrictedPath.deleteMany({
+                        where: {
+                            investigatorWallet: investigatorStr,
+                            caseId: caseIdStr,
+                            documentPath: docPathStr
+                        }
+                    }),
+                    prisma.event.create({
+                        data: {
+                            type: "InvestigatorPathUnrestricted" as any,
+                            timestamp: new Date(ts * 1000),
+                            caseId: caseIdStr,
+                            initiatorAddress: adminStr,
+                            involvedInvestigator: investigatorStr,
+                            documentPath: docPathStr
+                        }
+                    })
+                ]);
+                console.log("Successfully Indexed InvestigatorPathUnrestricted");
+            } catch (error) {
+                console.error("Error processing InvestigatorPathUnrestricted:", error);
+            }
+        }
+    );
 };

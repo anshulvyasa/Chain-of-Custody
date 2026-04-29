@@ -1,14 +1,15 @@
 'use client';
 
-import { useAccount } from 'wagmi';
+import { useAccount, usePublicClient } from 'wagmi';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
-import { useIsInvestigator } from '@/lib/hooks';
-import { useAllCases } from '@/lib/apiHooks';
-import { Folder, ShieldAlert, Search, Plus } from 'lucide-react';
+import { useEffect, useState, useMemo } from 'react';
+import { useIsInvestigator, useBlockchainCases, useCaseContractActions } from '@/lib/hooks';
+import { Folder, ShieldAlert, Search, Plus, Users } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Link from 'next/link';
 import AddInvestigatorButton from '@/components/AddInvestigatorButton';
+import { useQueryClient } from '@tanstack/react-query';
+import { ManageCaseInvestigatorModal } from '@/components/dashboard/ManageCaseInvestigatorModal';
 
 export default function DashboardLayout({
   children,
@@ -18,10 +19,51 @@ export default function DashboardLayout({
 
   const { address, isConnected, isConnecting, isReconnecting } = useAccount();
   const { data: isInvestigator, isLoading: isInvestigatorLoading } = useIsInvestigator();
-  const { data: casesData = [], isLoading: isCasesLoading } = useAllCases(address);
+  const { data: blockchainCasesData, isLoading: isCasesLoading } = useBlockchainCases();
+
+  const casesData = useMemo(() => {
+    if (!blockchainCasesData) return [];
+    const [caseIds, caseInfos] = blockchainCasesData as [string[], any[]];
+    return caseIds.map((id, idx) => ({
+      caseId: id,
+      caseTitle: caseInfos[idx]?.caseTitle || 'Unknown Case'
+    }));
+  }, [blockchainCasesData]);
   const router = useRouter();
 
+  const { addInvestigatorToCase, removeInvestigatorFromCase } = useCaseContractActions();
+  const publicClient = usePublicClient();
+  const queryClient = useQueryClient();
+
   const [isMounted, setIsMounted] = useState<boolean>(false);
+  const [manageModalOpen, setManageModalOpen] = useState(false);
+  const [activeCaseId, setActiveCaseId] = useState('');
+  const [activeCaseName, setActiveCaseName] = useState('');
+  const [targetInvestigator, setTargetInvestigator] = useState('');
+  const [isManagePending, setIsManagePending] = useState(false);
+
+  const handleManageAction = async (action: 'ADD' | 'REMOVE') => {
+    if (!activeCaseId || !targetInvestigator || !publicClient) return;
+    setIsManagePending(true);
+    try {
+      let tx;
+      if (action === 'ADD') {
+        tx = await addInvestigatorToCase(activeCaseId, targetInvestigator);
+      } else {
+        tx = await removeInvestigatorFromCase(activeCaseId, targetInvestigator);
+      }
+      const receipt = await publicClient.waitForTransactionReceipt({ hash: tx });
+      if (receipt.status === 'reverted') {
+        throw new Error("Transaction reverted");
+      }
+      setManageModalOpen(false);
+      queryClient.invalidateQueries({ queryKey: ['readContract'] });
+    } catch (e: any) {
+      alert(e.message || 'Error managing investigators');
+    } finally {
+      setIsManagePending(false);
+    }
+  };
 
   useEffect(() => {
     setIsMounted(true);
@@ -106,10 +148,26 @@ export default function DashboardLayout({
               <Link
                 key={c.caseId}
                 href={`/dashboard?caseId=${c.caseId}`}
-                className="flex items-center space-x-3 px-3 py-2 rounded-md hover:bg-zinc-800 transition-colors text-sm text-zinc-300"
+                className="group flex items-center justify-between px-3 py-2 rounded-md hover:bg-zinc-800 transition-colors text-sm text-zinc-300"
               >
-                <Folder className="w-4 h-4 text-zinc-500" />
-                <span className="truncate">{c.caseTitle}</span>
+                <div className="flex items-center space-x-3 overflow-hidden">
+                  <Folder className="w-4 h-4 text-zinc-500 shrink-0" />
+                  <span className="truncate">{c.caseTitle}</span>
+                </div>
+                <button
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setActiveCaseId(c.caseId);
+                    setActiveCaseName(c.caseTitle);
+                    setTargetInvestigator('');
+                    setManageModalOpen(true);
+                  }}
+                  className="p-1 text-zinc-500 hover:text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity rounded hover:bg-zinc-700"
+                  title="Manage Investigators"
+                >
+                  <Users className="w-3.5 h-3.5" />
+                </button>
               </Link>
             ))}
           </nav>
@@ -146,6 +204,16 @@ export default function DashboardLayout({
           {children}
         </div>
       </main>
+
+      <ManageCaseInvestigatorModal
+        isOpen={manageModalOpen}
+        onOpenChange={setManageModalOpen}
+        caseName={activeCaseName}
+        targetInvestigator={targetInvestigator}
+        setTargetInvestigator={setTargetInvestigator}
+        handleAction={handleManageAction}
+        isPending={isManagePending}
+      />
     </div>
   );
 }
