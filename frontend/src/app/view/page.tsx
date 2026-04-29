@@ -2,10 +2,11 @@
 
 import { useSearchParams } from 'next/navigation';
 import { useState, useEffect, Suspense } from 'react';
-import { ShieldCheck, ShieldAlert, Download, ArrowLeft, ChevronDown, ChevronUp, Clock, User, Link as LinkIcon } from 'lucide-react';
+import { ShieldCheck, ShieldAlert, ArrowLeft, ChevronDown, ChevronUp, Clock, User, Link as LinkIcon } from 'lucide-react';
 import DocumentPreview from '@/components/DocumentPreview';
 import { useCase, fetchSignedUrl } from '@/lib/apiHooks';
 import { useAccount } from 'wagmi';
+import { SignatureGate } from '@/components/dashboard/SignatureGate';
 
 type DocumentVersion = {
     id: string;
@@ -30,7 +31,10 @@ function DocumentViewPageInner() {
     const docId = searchParams.get('docId');
     const { address } = useAccount();
 
-    const { data: caseDataObj, isLoading: isCaseLoading } = useCase(caseId, address);
+    const [signature, setSignature] = useState<string | undefined>(undefined);
+    const [timestamp, setTimestamp] = useState<string | undefined>(undefined);
+
+    const { data: caseDataObj, isLoading: isCaseLoading } = useCase(caseId, address, signature, timestamp);
 
     const [doc, setDoc] = useState<DocumentVersion | null>(null);
     const [isVerifying, setIsVerifying] = useState(false);
@@ -39,6 +43,11 @@ function DocumentViewPageInner() {
     const [verifiedFileType, setVerifiedFileType] = useState<string | null>(null);
     const [calculatedHash, setCalculatedHash] = useState<string | null>(null);
     const [showDetails, setShowDetails] = useState(false);
+
+    const handleSigned = (sig: string, ts: string) => {
+        setSignature(sig);
+        setTimestamp(ts);
+    };
 
     // Find the document version from the case data
     useEffect(() => {
@@ -95,7 +104,7 @@ function DocumentViewPageInner() {
         verify();
     }, [doc, address]);
 
-    // ─── Loading / Error States ────────────────────────────────
+    // ─── Missing params ───────────────────────────────────────
     if (!caseId || !docId) {
         return (
             <div className="h-screen flex items-center justify-center bg-zinc-950 text-zinc-500">
@@ -104,6 +113,12 @@ function DocumentViewPageInner() {
         );
     }
 
+    // ─── Signature gate ───────────────────────────────────────
+    if (!signature || !timestamp) {
+        return <SignatureGate caseIdParam={caseId} onSigned={handleSigned} />;
+    }
+
+    // ─── Loading ──────────────────────────────────────────────
     if (isCaseLoading || !doc) {
         return (
             <div className="h-screen flex flex-col items-center justify-center bg-zinc-950">

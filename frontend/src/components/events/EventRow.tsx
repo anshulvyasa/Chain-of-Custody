@@ -64,15 +64,15 @@ const EVENT_CONFIG: Record<
     color: 'bg-red-500/15 text-red-400 border-red-500/25',
     label: 'Compromised Removed',
   },
-  InvestigatorPathRestricted: {
-    icon: Lock,
-    color: 'bg-red-500/15 text-red-400 border-red-500/25',
-    label: 'Path Restricted',
-  },
-  InvestigatorPathUnrestricted: {
+  InvestigatorPathAllowed: {
     icon: Unlock,
     color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/25',
-    label: 'Path Unrestricted',
+    label: 'Path Allowed',
+  },
+  InvestigatorPathRevoked: {
+    icon: Lock,
+    color: 'bg-red-500/15 text-red-400 border-red-500/25',
+    label: 'Path Revoked',
   },
 };
 

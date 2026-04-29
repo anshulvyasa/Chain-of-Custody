@@ -51,14 +51,12 @@ export const getCaseController = async (req: Request, res: Response) => {
             });
         }
 
-        const restricted = await prisma.investigatorRestrictedPath.findMany({
-            where: {
-                caseId,
-                investigatorWallet: walletAddress
-            }
+        const investigator = await prisma.investigator.findUnique({
+            where: { walletAddress }
         });
-        const restrictedPaths = new Set(restricted.map(r => r.documentPath));
+        const isSpecialAdmin = investigator?.authority === 'SPECIALADMIN';
 
+        // Build full-path lookup for all folders
         const folderPaths = new Map<string, string>();
         const getFullPath = (folderId: string): string => {
             if (folderPaths.has(folderId)) return folderPaths.get(folderId)!;
@@ -74,17 +72,38 @@ export const getCaseController = async (req: Request, res: Response) => {
             return fullPath;
         };
 
-        const isRestricted = (fullPath: string) => {
-            const segments = fullPath.split('/');
-            let current = "";
-            for (const seg of segments) {
-                current = current ? `${current}/${seg}` : seg;
-                if (restrictedPaths.has(current)) return true;
-            }
-            return false;
-        };
+        let allowedFolders;
 
-        const allowedFolders = caseData.folders.filter(f => !isRestricted(getFullPath(f.id)));
+        if (isSpecialAdmin) {
+            // Special Admins see everything
+            allowedFolders = caseData.folders;
+        } else {
+            // Whitelist model: fetch explicitly allowed paths for this investigator
+            const allowed = await prisma.investigatorAllowedPath.findMany({
+                where: {
+                    caseId,
+                    investigatorWallet: walletAddress
+                }
+            });
+            const allowedPaths = new Set(allowed.map(a => a.documentPath));
+
+            // A folder is visible if:
+            // 1. Its full path exactly matches an allowed path, OR
+            // 2. Its full path is a PREFIX of an allowed path (ancestor folder), OR
+            // 3. Its full path STARTS WITH an allowed path (descendant folder)
+            const isAllowed = (fullPath: string): boolean => {
+                if (allowedPaths.has(fullPath)) return true;
+                for (const ap of allowedPaths) {
+                    // Folder is an ancestor of an allowed path
+                    if (ap.startsWith(fullPath + '/')) return true;
+                    // Folder is a descendant of an allowed path
+                    if (fullPath.startsWith(ap + '/')) return true;
+                }
+                return false;
+            };
+
+            allowedFolders = caseData.folders.filter(f => isAllowed(getFullPath(f.id)));
+        }
 
         const folderMap = new Map<string, any>();
         const roots: any[] = [];

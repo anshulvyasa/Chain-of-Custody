@@ -83,12 +83,19 @@ export const getEvents = async (req: Request, res: Response) => {
                 timestamp: "desc"
             },
             take: recordsRequired,
-            skip: skip
+            skip: skip,
+            include: { case: true }
         });
+
+        // Populate caseTitle from the Case relation if not set on the event itself
+        const enriched = data.map(({ case: caseRel, ...evt }) => ({
+            ...evt,
+            caseTitle: evt.caseTitle || caseRel?.caseTitle || null
+        }));
 
         res.status(200).json({
             success: true,
-            data
+            data: enriched
         });
 
     } catch (error) {
@@ -111,6 +118,7 @@ export const getEventById = async (req: Request, res: Response) => {
     try {
         const event = await prisma.event.findUnique({
             where: { id },
+            include: { case: true }
         });
 
         if (!event) {
@@ -121,9 +129,16 @@ export const getEventById = async (req: Request, res: Response) => {
             return;
         }
 
+        // Populate caseTitle from the Case relation if not set on the event itself
+        const { case: caseRel, ...evt } = event;
+        const enriched = {
+            ...evt,
+            caseTitle: evt.caseTitle || caseRel?.caseTitle || null
+        };
+
         res.status(200).json({
             success: true,
-            data: event
+            data: enriched
         });
 
     } catch (error) {

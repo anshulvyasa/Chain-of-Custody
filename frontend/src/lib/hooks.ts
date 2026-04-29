@@ -74,21 +74,21 @@ export function useCaseContractActions() {
     return tx;
   };
 
-  const restrictInvestigatorPath = async (caseId: string, investigator: string, documentPath: string) => {
+  const allowInvestigatorPath = async (caseId: string, investigator: string, documentPath: string) => {
     const tx = await writeContractAsync({
       address: CONTRACT_ADDRESS,
       abi: CASE_CONTRACT_ABI,
-      functionName: 'restrictInvestigatorPath',
+      functionName: 'allowInvestigatorPath',
       args: [caseId, investigator, documentPath],
     });
     return tx;
   };
 
-  const unrestrictInvestigatorPath = async (caseId: string, investigator: string, documentPath: string) => {
+  const revokeInvestigatorPath = async (caseId: string, investigator: string, documentPath: string) => {
     const tx = await writeContractAsync({
       address: CONTRACT_ADDRESS,
       abi: CASE_CONTRACT_ABI,
-      functionName: 'unrestrictInvestigatorPath',
+      functionName: 'revokeInvestigatorPath',
       args: [caseId, investigator, documentPath],
     });
     return tx;
@@ -114,7 +114,7 @@ export function useCaseContractActions() {
     return tx;
   };
 
-  return { addDocumentHash, createNewCase, accessDocument, restrictInvestigatorPath, unrestrictInvestigatorPath, addInvestigatorToCase, removeInvestigatorFromCase };
+  return { addDocumentHash, createNewCase, accessDocument, allowInvestigatorPath, revokeInvestigatorPath, addInvestigatorToCase, removeInvestigatorFromCase };
 }
 
 export function useInvestigatorContractActions() {
@@ -163,5 +163,29 @@ export function useInvestigatorContractActions() {
     }
   };
 
-  return { addNewInvestigator, promoteToAdmin, promoteToSpecialAdmin };
+  const removeExistingInvestigator = async (addresses: string[]) => {
+    const tx = await writeContractAsync({
+      address: CONTRACT_ADDRESS,
+      abi: CASE_CONTRACT_ABI,
+      functionName: 'removeExistingInvestigator',
+      args: [addresses],
+    });
+    if (publicClient) {
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+    }
+  };
+
+  const removeCompromizedInvestigator = async (addresses: string[]) => {
+    const tx = await writeContractAsync({
+      address: CONTRACT_ADDRESS,
+      abi: CASE_CONTRACT_ABI,
+      functionName: 'removeCompromizedInvestigator',
+      args: [addresses],
+    });
+    if (publicClient) {
+      await publicClient.waitForTransactionReceipt({ hash: tx });
+    }
+  };
+
+  return { addNewInvestigator, promoteToAdmin, promoteToSpecialAdmin, removeExistingInvestigator, removeCompromizedInvestigator };
 }

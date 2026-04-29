@@ -18,8 +18,8 @@ const EVENT_TYPES = [
   { value: 'NewInvestigatorAdded', label: 'New Investigator' },
   { value: 'RemoveExistingInvestigator', label: 'Remove Global Investigator' },
   { value: 'RemoveCompromizedInvestigator', label: 'Remove Compromised' },
-  { value: 'InvestigatorPathRestricted', label: 'Path Restricted' },
-  { value: 'InvestigatorPathUnrestricted', label: 'Path Unrestricted' },
+  { value: 'InvestigatorPathAllowed', label: 'Path Allowed' },
+  { value: 'InvestigatorPathRevoked', label: 'Path Revoked' },
 ] as const;
 
 interface EventTypeFilterProps {

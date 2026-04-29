@@ -6,7 +6,7 @@ interface AccessManagementModalProps {
   nodeName: string;
   targetInvestigator: string;
   setTargetInvestigator: (val: string) => void;
-  handleAccessAction: (action: 'RESTRICT' | 'UNRESTRICT') => void;
+  handleAccessAction: (action: 'ALLOW' | 'REVOKE') => void;
   isPending: boolean;
 }
 
@@ -35,24 +35,24 @@ export function AccessManagementModal({
               placeholder="0x..."
             />
             <p className="text-xs text-zinc-500 mt-2">
-              Restricting an investigator prevents them from viewing this folder and any of its contents.
+              Grant or revoke an investigator&apos;s access to this folder and its contents. New investigators have no access by default.
             </p>
           </div>
         </div>
         <DialogFooter className="bg-transparent border-t-zinc-800 flex justify-between">
           <button
-            onClick={() => handleAccessAction('UNRESTRICT')}
+            onClick={() => handleAccessAction('ALLOW')}
             disabled={isPending || !targetInvestigator}
             className="bg-emerald-600/20 text-emerald-400 hover:bg-emerald-600/30 border border-emerald-500/30 px-4 py-2 rounded-md text-sm transition-colors disabled:opacity-50"
           >
-            {isPending ? 'Processing...' : 'Allow Access'}
+            {isPending ? 'Processing...' : 'Grant Access'}
           </button>
           <button
-            onClick={() => handleAccessAction('RESTRICT')}
+            onClick={() => handleAccessAction('REVOKE')}
             disabled={isPending || !targetInvestigator}
             className="bg-red-600 hover:bg-red-500 text-white px-4 py-2 rounded-md text-sm transition-colors disabled:opacity-50"
           >
-            {isPending ? 'Processing...' : 'Restrict Access'}
+            {isPending ? 'Processing...' : 'Revoke Access'}
           </button>
         </DialogFooter>
       </DialogContent>

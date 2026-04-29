@@ -47,7 +47,7 @@ export default function DashboardPage() {
   const publicClient = usePublicClient();
 
   const createFolderMutation = useCreateFolder(address);
-  const { accessDocument, restrictInvestigatorPath, unrestrictInvestigatorPath } = useCaseContractActions();
+  const { accessDocument, allowInvestigatorPath, revokeInvestigatorPath } = useCaseContractActions();
   const { data: isInvestigatorData } = useIsInvestigator();
   const isAdmin = Boolean(isInvestigatorData && ((isInvestigatorData as any)[0] === 0 || (isInvestigatorData as any)[0] === 1));
 
@@ -120,16 +120,16 @@ export default function DashboardPage() {
     setAccessModalOpen(true);
   };
 
-  const handleAccessAction = async (action: 'RESTRICT' | 'UNRESTRICT') => {
+  const handleAccessAction = async (action: 'ALLOW' | 'REVOKE') => {
     if (!caseIdParam || !accessNodeId || !targetInvestigator || !publicClient) return;
     setIsAccessActionPending(true);
     try {
       const path = await fetchFolderPath(accessNodeId, address);
       let tx;
-      if (action === 'RESTRICT') {
-        tx = await restrictInvestigatorPath(caseIdParam, targetInvestigator, path);
+      if (action === 'ALLOW') {
+        tx = await allowInvestigatorPath(caseIdParam, targetInvestigator, path);
       } else {
-        tx = await unrestrictInvestigatorPath(caseIdParam, targetInvestigator, path);
+        tx = await revokeInvestigatorPath(caseIdParam, targetInvestigator, path);
       }
       await publicClient.waitForTransactionReceipt({ hash: tx });
       setAccessModalOpen(false);

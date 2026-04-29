@@ -2,12 +2,13 @@
 
 import { useAccount, usePublicClient } from 'wagmi';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import { useIsInvestigator, useBlockchainCases, useCaseContractActions } from '@/lib/hooks';
 import { Folder, ShieldAlert, Search, Plus, Users } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Link from 'next/link';
 import AddInvestigatorButton from '@/components/AddInvestigatorButton';
+import RemoveInvestigatorButton from '@/components/RemoveInvestigatorButton';
 import PromoteInvestigatorButton from '@/components/PromoteInvestigatorButton';
 import { useQueryClient } from '@tanstack/react-query';
 import { ManageCaseInvestigatorModal } from '@/components/dashboard/ManageCaseInvestigatorModal';
@@ -27,10 +28,21 @@ export default function DashboardLayout({
     const [caseIds, caseInfos] = blockchainCasesData as [string[], any[]];
     return caseIds.map((id, idx) => ({
       caseId: id,
-      caseTitle: caseInfos[idx]?.caseTitle || 'Unknown Case'
+      caseTitle: caseInfos[idx]?.caseTitle || 'Unknown Case',
+      createdBy: caseInfos[idx]?.createdBy || ''
     }));
   }, [blockchainCasesData]);
   const router = useRouter();
+
+  const investigatorAuthority = useMemo(() => {
+    if (isInvestigator && Array.isArray(isInvestigator) && isInvestigator.length === 2 && isInvestigator[1]) {
+      const roleIdx = Number(isInvestigator[0]);
+      if (roleIdx === 0) return 'SPECIALADMIN';
+      if (roleIdx === 1) return 'ADMIN';
+      if (roleIdx === 2) return 'NORMAL';
+    }
+    return 'NONE';
+  }, [isInvestigator]);
 
   const { addInvestigatorToCase, removeInvestigatorFromCase } = useCaseContractActions();
   const publicClient = usePublicClient();
@@ -43,6 +55,7 @@ export default function DashboardLayout({
   const [targetInvestigator, setTargetInvestigator] = useState('');
   const [isManagePending, setIsManagePending] = useState(false);
   const [manageError, setManageError] = useState<string | null>(null);
+  const [canRemove, setCanRemove] = useState(false);
 
   const handleManageAction = async (action: 'ADD' | 'REMOVE') => {
     if (!activeCaseId || !targetInvestigator || !publicClient) return;
@@ -83,29 +96,16 @@ export default function DashboardLayout({
   const isAuthChecking = !isMounted || isWagmiLoading || isInvestigatorLoading;
 
 
+  const prevAddressRef = useRef(address);
+
   useEffect(() => {
     if (!address) return;
-
-    const f = async () => {
-
-      // const response = await fetch(
-      //   "http://localhost:5000/api/v1/investigator/investigator-check-and-create",
-      //   {
-      //     method: "POST",
-      //     headers: {
-      //       "Content-Type": "application/json",
-      //     },
-      //     body: JSON.stringify({
-      //       walletAddress: address,
-      //     }),
-      //   }
-      // );
+    // On account switch (not initial load), redirect to clean dashboard
+    if (prevAddressRef.current && prevAddressRef.current !== address) {
+      router.push('/dashboard');
     }
-
-    f();
-
-
-  }, [address]);
+    prevAddressRef.current = address;
+  }, [address, router]);
 
   useEffect(() => {
     if (isAuthChecking) return;
@@ -146,9 +146,11 @@ export default function DashboardLayout({
             <span className="text-xs font-semibold text-zinc-500 uppercase tracking-wider">
               Assigned Cases
             </span>
-            <Link href="/dashboard/create" className="text-xs text-blue-400 hover:text-blue-300 flex items-center">
-              <Plus className="w-3 h-3 mr-1" /> New
-            </Link>
+            {(investigatorAuthority === 'ADMIN' || investigatorAuthority === 'SPECIALADMIN') && (
+              <Link href="/dashboard/create" className="text-xs text-blue-400 hover:text-blue-300 flex items-center">
+                <Plus className="w-3 h-3 mr-1" /> New
+              </Link>
+            )}
           </div>
           <nav className="space-y-1 no-scrollbar">
             {isCasesLoading ? (
@@ -163,21 +165,27 @@ export default function DashboardLayout({
                   <Folder className="w-4 h-4 text-zinc-500 shrink-0" />
                   <span className="truncate">{c.caseTitle}</span>
                 </div>
-                <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    setActiveCaseId(c.caseId);
-                    setActiveCaseName(c.caseTitle);
-                    setTargetInvestigator('');
-                    setManageError(null);
-                    setManageModalOpen(true);
-                  }}
-                  className="p-1 text-zinc-500 hover:text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity rounded hover:bg-zinc-700"
-                  title="Manage Investigators"
-                >
-                  <Users className="w-3.5 h-3.5" />
-                </button>
+                {(investigatorAuthority === 'SPECIALADMIN' || investigatorAuthority === 'ADMIN' ||
+                  (address && c.createdBy && address.toLowerCase() === c.createdBy.toLowerCase())) && (
+                  <button
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setActiveCaseId(c.caseId);
+                      setActiveCaseName(c.caseTitle);
+                      setTargetInvestigator('');
+                      setManageError(null);
+                      // Allow remove if special admin OR case creator
+                      const isCaseCreator = address && c.createdBy && address.toLowerCase() === c.createdBy.toLowerCase();
+                      setCanRemove(investigatorAuthority === 'SPECIALADMIN' || !!isCaseCreator);
+                      setManageModalOpen(true);
+                    }}
+                    className="p-1 text-zinc-500 hover:text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity rounded hover:bg-zinc-700"
+                    title="Manage Investigators"
+                  >
+                    <Users className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </Link>
             ))}
           </nav>
@@ -202,8 +210,13 @@ export default function DashboardLayout({
         <header className="h-16 border-b border-zinc-800 flex items-center justify-between px-8 bg-zinc-900/50 backdrop-blur-md">
           <h2 className="text-lg font-medium text-zinc-100">Case Evidence Management</h2>
           <div className="flex items-center gap-4">
-            <PromoteInvestigatorButton />
-            <AddInvestigatorButton />
+            {investigatorAuthority === 'SPECIALADMIN' && (
+              <>
+                <RemoveInvestigatorButton />
+                <PromoteInvestigatorButton />
+                <AddInvestigatorButton />
+              </>
+            )}
             <div className="text-xs bg-zinc-800 px-3 py-1 rounded-full text-zinc-400 flex items-center">
               <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2"></span>
               Connected to Chain
@@ -228,6 +241,7 @@ export default function DashboardLayout({
         handleAction={handleManageAction}
         isPending={isManagePending}
         errorMessage={manageError}
+        canRemove={canRemove}
       />
     </div>
   );

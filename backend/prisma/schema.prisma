@@ -20,7 +20,7 @@ model Investigator {
   casesCreated     Case[]
   events           Event[] @relation("ActionInitiator")
   timesAddedToCase Event[] @relation("AddedTarget")
-  restrictedPaths  InvestigatorRestrictedPath[]
+  allowedPaths     InvestigatorAllowedPath[]
 }
 
 model Case {
@@ -75,13 +75,13 @@ enum EventType {
   NewInvestigatorAdded
   RemoveExistingInvestigator
   RemoveCompromizedInvestigator
-  InvestigatorPathRestricted
-  InvestigatorPathUnrestricted
+  InvestigatorPathAllowed
+  InvestigatorPathRevoked
   InvestigatorPromotedToAdmin
   InvestigatorPromotedToSpecialAdmin
 }
 
-model InvestigatorRestrictedPath {
+model InvestigatorAllowedPath {
   id                 String       @id @default(uuid())
   investigatorWallet String
   investigator       Investigator @relation(fields: [investigatorWallet], references: [walletAddress], onDelete: Cascade)

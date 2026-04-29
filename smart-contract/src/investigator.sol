@@ -25,7 +25,8 @@ contract Investigator {
                 _initialInvestigators[i],
                 address(this),
                 InvestigatorAuthority.SPECIALADMIN, 
-                block.timestamp
+                block.timestamp,
+                InvestigatorAuthority.SPECIALADMIN
             );
         }
     }
@@ -34,33 +35,40 @@ contract Investigator {
         address indexed investigator,
         address indexed from,
         InvestigatorAuthority investigatorAuthority,
-        uint timestamp
+        uint timestamp,
+        InvestigatorAuthority initiatorAuthority
     );
 
     event RemoveExistingInvestigator(
         address indexed investigator,
         address indexed from,
         InvestigatorAuthority investigatorAuthority,
-        uint timestamp
+        uint timestamp,
+        InvestigatorAuthority initiatorAuthority
     );
 
     event RemoveCompromizedInvestigator(
         address indexed investigator,
         address indexed from,
         InvestigatorAuthority investigatorAuthority,
-        uint timestamp
+        uint timestamp,
+        InvestigatorAuthority initiatorAuthority
     );
 
     event InvestigatorPromotedToAdmin(
         address indexed investigator,
         address indexed from,
-        uint timestamp
+        uint timestamp,
+        InvestigatorAuthority targetAuthority,
+        InvestigatorAuthority initiatorAuthority
     );
 
     event InvestigatorPromotedToSpecialAdmin(
         address indexed investigator,
         address indexed from,
-        uint timestamp
+        uint timestamp,
+        InvestigatorAuthority targetAuthority,
+        InvestigatorAuthority initiatorAuthority
     );
 
     modifier OnlyAdminsInvestigator() {
@@ -105,7 +113,8 @@ contract Investigator {
             _newInvestigator,
             msg.sender,
             _authority,
-            block.timestamp
+            block.timestamp,
+            investigators[msg.sender].investigatorAuthority
         );
     }
 
@@ -121,7 +130,8 @@ contract Investigator {
                     _investigators[i],
                     msg.sender,
                     authority,
-                    block.timestamp
+                    block.timestamp,
+                    investigators[msg.sender].investigatorAuthority
                 );
             }
         }
@@ -139,7 +149,8 @@ contract Investigator {
                     _investigators[i],
                     msg.sender,
                     authority,
-                    block.timestamp
+                    block.timestamp,
+                    investigators[msg.sender].investigatorAuthority
                 );
             }
         }
@@ -160,7 +171,9 @@ contract Investigator {
         emit InvestigatorPromotedToAdmin(
             _investigator,
             msg.sender,
-            block.timestamp
+            block.timestamp,
+            InvestigatorAuthority.ADMIN,
+            investigators[msg.sender].investigatorAuthority
         );
     }
 
@@ -180,7 +193,9 @@ contract Investigator {
         emit InvestigatorPromotedToSpecialAdmin(
             _investigator,
             msg.sender,
-            block.timestamp
+            block.timestamp,
+            InvestigatorAuthority.SPECIALADMIN,
+            investigators[msg.sender].investigatorAuthority
         );
     }
 }

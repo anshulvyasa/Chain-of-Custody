@@ -10,6 +10,7 @@ interface ManageCaseInvestigatorModalProps {
   handleAction: (action: 'ADD' | 'REMOVE') => void;
   isPending: boolean;
   errorMessage?: string | null;
+  canRemove: boolean;
 }
 
 export function ManageCaseInvestigatorModal({
@@ -20,7 +21,8 @@ export function ManageCaseInvestigatorModal({
   setTargetInvestigator,
   handleAction,
   isPending,
-  errorMessage
+  errorMessage,
+  canRemove
 }: ManageCaseInvestigatorModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -38,7 +40,9 @@ export function ManageCaseInvestigatorModal({
               placeholder="0x..."
             />
             <p className="text-xs text-zinc-500 mt-2">
-              Add or remove an investigator from this case. Removing them will revoke their access to all evidence in this case.
+              {canRemove
+                ? 'Add or remove an investigator from this case. Removing them will revoke their access to all evidence in this case.'
+                : 'Add an investigator to this case. Only the case creator or Special Admins can remove investigators.'}
             </p>
           </div>
           {errorMessage && (
@@ -56,13 +60,15 @@ export function ManageCaseInvestigatorModal({
           >
             {isPending ? 'Processing...' : 'Add Investigator'}
           </button>
-          <button
-            onClick={() => handleAction('REMOVE')}
-            disabled={isPending || !targetInvestigator}
-            className="bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-500/30 px-4 py-2 rounded-md text-sm transition-colors disabled:opacity-50"
-          >
-            {isPending ? 'Processing...' : 'Remove Investigator'}
-          </button>
+          {canRemove && (
+            <button
+              onClick={() => handleAction('REMOVE')}
+              disabled={isPending || !targetInvestigator}
+              className="bg-red-600/20 text-red-400 hover:bg-red-600/30 border border-red-500/30 px-4 py-2 rounded-md text-sm transition-colors disabled:opacity-50"
+            >
+              {isPending ? 'Processing...' : 'Remove Investigator'}
+            </button>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

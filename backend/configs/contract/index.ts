@@ -189,6 +189,29 @@ export const CASE_CONTRACT_ABI = [
   },
   {
     "type": "function",
+    "name": "allowInvestigatorPath",
+    "inputs": [
+      {
+        "name": "_caseId",
+        "type": "string",
+        "internalType": "string"
+      },
+      {
+        "name": "_investigator",
+        "type": "address",
+        "internalType": "address"
+      },
+      {
+        "name": "_documentPath",
+        "type": "string",
+        "internalType": "string"
+      }
+    ],
+    "outputs": [],
+    "stateMutability": "nonpayable"
+  },
+  {
+    "type": "function",
     "name": "createCase",
     "inputs": [
       {
@@ -372,30 +395,7 @@ export const CASE_CONTRACT_ABI = [
   },
   {
     "type": "function",
-    "name": "restrictInvestigatorPath",
-    "inputs": [
-      {
-        "name": "_caseId",
-        "type": "string",
-        "internalType": "string"
-      },
-      {
-        "name": "_investigator",
-        "type": "address",
-        "internalType": "address"
-      },
-      {
-        "name": "_documentPath",
-        "type": "string",
-        "internalType": "string"
-      }
-    ],
-    "outputs": [],
-    "stateMutability": "nonpayable"
-  },
-  {
-    "type": "function",
-    "name": "unrestrictInvestigatorPath",
+    "name": "revokeInvestigatorPath",
     "inputs": [
       {
         "name": "_caseId",
@@ -443,6 +443,12 @@ export const CASE_CONTRACT_ABI = [
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
+      },
+      {
+        "name": "initiatorAuthority",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum InvestigatorAuthority"
       }
     ],
     "anonymous": false
@@ -474,6 +480,12 @@ export const CASE_CONTRACT_ABI = [
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
+      },
+      {
+        "name": "initiatorAuthority",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum InvestigatorAuthority"
       }
     ],
     "anonymous": false
@@ -523,6 +535,12 @@ export const CASE_CONTRACT_ABI = [
             "internalType": "string"
           }
         ]
+      },
+      {
+        "name": "initiatorAuthority",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum InvestigatorAuthority"
       }
     ],
     "anonymous": false
@@ -554,13 +572,25 @@ export const CASE_CONTRACT_ABI = [
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
+      },
+      {
+        "name": "targetAuthority",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum InvestigatorAuthority"
+      },
+      {
+        "name": "initiatorAuthority",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum InvestigatorAuthority"
       }
     ],
     "anonymous": false
   },
   {
     "type": "event",
-    "name": "InvestigatorPathRestricted",
+    "name": "InvestigatorPathAllowed",
     "inputs": [
       {
         "name": "investigator",
@@ -591,13 +621,25 @@ export const CASE_CONTRACT_ABI = [
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
+      },
+      {
+        "name": "targetAuthority",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum InvestigatorAuthority"
+      },
+      {
+        "name": "initiatorAuthority",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum InvestigatorAuthority"
       }
     ],
     "anonymous": false
   },
   {
     "type": "event",
-    "name": "InvestigatorPathUnrestricted",
+    "name": "InvestigatorPathRevoked",
     "inputs": [
       {
         "name": "investigator",
@@ -628,6 +670,18 @@ export const CASE_CONTRACT_ABI = [
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
+      },
+      {
+        "name": "targetAuthority",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum InvestigatorAuthority"
+      },
+      {
+        "name": "initiatorAuthority",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum InvestigatorAuthority"
       }
     ],
     "anonymous": false
@@ -653,6 +707,18 @@ export const CASE_CONTRACT_ABI = [
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
+      },
+      {
+        "name": "targetAuthority",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum InvestigatorAuthority"
+      },
+      {
+        "name": "initiatorAuthority",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum InvestigatorAuthority"
       }
     ],
     "anonymous": false
@@ -678,6 +744,18 @@ export const CASE_CONTRACT_ABI = [
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
+      },
+      {
+        "name": "targetAuthority",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum InvestigatorAuthority"
+      },
+      {
+        "name": "initiatorAuthority",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum InvestigatorAuthority"
       }
     ],
     "anonymous": false
@@ -709,6 +787,18 @@ export const CASE_CONTRACT_ABI = [
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
+      },
+      {
+        "name": "targetAuthority",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum InvestigatorAuthority"
+      },
+      {
+        "name": "initiatorAuthority",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum InvestigatorAuthority"
       }
     ],
     "anonymous": false
@@ -740,6 +830,12 @@ export const CASE_CONTRACT_ABI = [
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
+      },
+      {
+        "name": "initiatorAuthority",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum InvestigatorAuthority"
       }
     ],
     "anonymous": false
@@ -771,6 +867,12 @@ export const CASE_CONTRACT_ABI = [
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
+      },
+      {
+        "name": "initiatorAuthority",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum InvestigatorAuthority"
       }
     ],
     "anonymous": false
@@ -802,6 +904,12 @@ export const CASE_CONTRACT_ABI = [
         "type": "uint256",
         "indexed": false,
         "internalType": "uint256"
+      },
+      {
+        "name": "initiatorAuthority",
+        "type": "uint8",
+        "indexed": false,
+        "internalType": "enum InvestigatorAuthority"
       }
     ],
     "anonymous": false
