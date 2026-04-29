@@ -69,6 +69,12 @@ export const setupBlockchainListeners = () => {
 
             try {
 
+                await prisma.investigator.upsert({
+                    where: { walletAddress: investigatorStr },
+                    update: {},
+                    create: { walletAddress: investigatorStr }
+                });
+
                 await prisma.event.create({
                     data: {
                         type: "DocumentHashAdded",
@@ -160,15 +166,22 @@ export const setupBlockchainListeners = () => {
             const ts = Number(timeStamp);
 
             try {
-                await prisma.event.create({
-                    data: {
-                        type: "AccessDocument" as any,
-                        timestamp: new Date(ts * 1000),
-                        caseId: caseIdStr,
-                        initiatorAddress: investigatorStr,
-                        documentPath: docPathStr,
-                    }
-                });
+                await prisma.$transaction([
+                    prisma.investigator.upsert({
+                        where: { walletAddress: investigatorStr },
+                        update: {},
+                        create: { walletAddress: investigatorStr }
+                    }),
+                    prisma.event.create({
+                        data: {
+                            type: "AccessDocument" as any,
+                            timestamp: new Date(ts * 1000),
+                            caseId: caseIdStr,
+                            initiatorAddress: investigatorStr,
+                            documentPath: docPathStr,
+                        }
+                    })
+                ]);
 
                 console.log(`Successfully indexed AccessDocument for ${caseIdStr} at ${docPathStr}`);
             } catch (error) {
@@ -232,6 +245,16 @@ export const setupBlockchainListeners = () => {
 
             try {
                 await prisma.$transaction([
+                    prisma.investigator.upsert({
+                        where: { walletAddress: investigatorStr },
+                        update: {},
+                        create: { walletAddress: investigatorStr }
+                    }),
+                    prisma.investigator.upsert({
+                        where: { walletAddress: adminStr },
+                        update: {},
+                        create: { walletAddress: adminStr }
+                    }),
                     prisma.investigatorRestrictedPath.upsert({
                         where: {
                             investigatorWallet_caseId_documentPath: {
@@ -279,6 +302,16 @@ export const setupBlockchainListeners = () => {
 
             try {
                 await prisma.$transaction([
+                    prisma.investigator.upsert({
+                        where: { walletAddress: investigatorStr },
+                        update: {},
+                        create: { walletAddress: investigatorStr }
+                    }),
+                    prisma.investigator.upsert({
+                        where: { walletAddress: adminStr },
+                        update: {},
+                        create: { walletAddress: adminStr }
+                    }),
                     prisma.investigatorRestrictedPath.deleteMany({
                         where: {
                             investigatorWallet: investigatorStr,
@@ -315,15 +348,27 @@ export const setupBlockchainListeners = () => {
             console.log(`Event InvestigatorAddedToCase: ${investigatorStr} added to ${caseIdStr} by ${fromStr}`);
 
             try {
-                await prisma.event.create({
-                    data: {
-                        type: "InvestigatorAddedToCase",
-                        timestamp: new Date(ts * 1000),
-                        caseId: caseIdStr,
-                        initiatorAddress: fromStr,
-                        involvedInvestigator: investigatorStr
-                    }
-                });
+                await prisma.$transaction([
+                    prisma.investigator.upsert({
+                        where: { walletAddress: investigatorStr },
+                        update: {},
+                        create: { walletAddress: investigatorStr }
+                    }),
+                    prisma.investigator.upsert({
+                        where: { walletAddress: fromStr },
+                        update: {},
+                        create: { walletAddress: fromStr }
+                    }),
+                    prisma.event.create({
+                        data: {
+                            type: "InvestigatorAddedToCase",
+                            timestamp: new Date(ts * 1000),
+                            caseId: caseIdStr,
+                            initiatorAddress: fromStr,
+                            involvedInvestigator: investigatorStr
+                        }
+                    })
+                ]);
                 console.log("Successfully Indexed InvestigatorAddedToCase");
             } catch (error) {
                 console.error("Error processing InvestigatorAddedToCase:", error);
@@ -343,18 +388,108 @@ export const setupBlockchainListeners = () => {
             console.log(`Event InvestigatorRemovedFromCase: ${investigatorStr} removed from ${caseIdStr} by ${fromStr}`);
 
             try {
-                await prisma.event.create({
-                    data: {
-                        type: "InvestigatorRemovedFromCase",
-                        timestamp: new Date(ts * 1000),
-                        caseId: caseIdStr,
-                        initiatorAddress: fromStr,
-                        involvedInvestigator: investigatorStr
-                    }
-                });
+                await prisma.$transaction([
+                    prisma.investigator.upsert({
+                        where: { walletAddress: investigatorStr },
+                        update: {},
+                        create: { walletAddress: investigatorStr }
+                    }),
+                    prisma.investigator.upsert({
+                        where: { walletAddress: fromStr },
+                        update: {},
+                        create: { walletAddress: fromStr }
+                    }),
+                    prisma.event.create({
+                        data: {
+                            type: "InvestigatorRemovedFromCase",
+                            timestamp: new Date(ts * 1000),
+                            caseId: caseIdStr,
+                            initiatorAddress: fromStr,
+                            involvedInvestigator: investigatorStr
+                        }
+                    })
+                ]);
                 console.log("Successfully Indexed InvestigatorRemovedFromCase");
             } catch (error) {
                 console.error("Error processing InvestigatorRemovedFromCase:", error);
+            }
+        }
+    );
+
+    // Listen to InvestigatorPromotedToAdmin Event
+    contract.on(
+        "InvestigatorPromotedToAdmin",
+        async (investigator, from, timestamp) => {
+            const investigatorStr = String(investigator);
+            const fromStr = String(from);
+            const ts = Number(timestamp);
+
+            console.log(`Event InvestigatorPromotedToAdmin: ${investigatorStr} promoted to ADMIN by ${fromStr} at ${ts}`);
+
+            try {
+                await prisma.$transaction([
+                    prisma.investigator.upsert({
+                        where: { walletAddress: investigatorStr },
+                        update: { authority: "ADMIN" },
+                        create: { walletAddress: investigatorStr, authority: "ADMIN" }
+                    }),
+                    prisma.investigator.upsert({
+                        where: { walletAddress: fromStr },
+                        update: {},
+                        create: { walletAddress: fromStr }
+                    }),
+                    prisma.event.create({
+                        data: {
+                            type: "InvestigatorPromotedToAdmin",
+                            timestamp: new Date(ts * 1000),
+                            initiatorAddress: fromStr,
+                            involvedInvestigator: investigatorStr,
+                            authority: "ADMIN"
+                        }
+                    })
+                ]);
+                console.log("Successfully Indexed InvestigatorPromotedToAdmin");
+            } catch (error) {
+                console.error("Error processing InvestigatorPromotedToAdmin:", error);
+            }
+        }
+    );
+
+    // Listen to InvestigatorPromotedToSpecialAdmin Event
+    contract.on(
+        "InvestigatorPromotedToSpecialAdmin",
+        async (investigator, from, timestamp) => {
+            const investigatorStr = String(investigator);
+            const fromStr = String(from);
+            const ts = Number(timestamp);
+
+            console.log(`Event InvestigatorPromotedToSpecialAdmin: ${investigatorStr} promoted to SPECIALADMIN by ${fromStr} at ${ts}`);
+
+            try {
+                await prisma.$transaction([
+                    prisma.investigator.upsert({
+                        where: { walletAddress: investigatorStr },
+                        update: { authority: "SPECIALADMIN" },
+                        create: { walletAddress: investigatorStr, authority: "SPECIALADMIN" }
+                    }),
+                    prisma.investigator.upsert({
+                        where: { walletAddress: fromStr },
+                        update: {},
+                        create: { walletAddress: fromStr }
+                    }),
+                    prisma.event.create({
+                        data: {
+                            type: "InvestigatorPromotedToSpecialAdmin",
+                            timestamp: new Date(ts * 1000),
+                            initiatorAddress: fromStr,
+                            involvedInvestigator: investigatorStr,
+                            authority: "SPECIALADMIN"
+                        }
+                    })
+                ]);
+                console.log("Successfully Indexed InvestigatorPromotedToSpecialAdmin");
+            } catch (error) {
+                console.error("Error processing InvestigatorPromotedToSpecialAdmin:", error);
             }
         }
     );

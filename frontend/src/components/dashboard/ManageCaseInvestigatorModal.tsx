@@ -1,4 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { AlertCircle } from 'lucide-react';
 
 interface ManageCaseInvestigatorModalProps {
   isOpen: boolean;
@@ -8,6 +9,7 @@ interface ManageCaseInvestigatorModalProps {
   setTargetInvestigator: (val: string) => void;
   handleAction: (action: 'ADD' | 'REMOVE') => void;
   isPending: boolean;
+  errorMessage?: string | null;
 }
 
 export function ManageCaseInvestigatorModal({
@@ -17,7 +19,8 @@ export function ManageCaseInvestigatorModal({
   targetInvestigator,
   setTargetInvestigator,
   handleAction,
-  isPending
+  isPending,
+  errorMessage
 }: ManageCaseInvestigatorModalProps) {
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
@@ -38,6 +41,12 @@ export function ManageCaseInvestigatorModal({
               Add or remove an investigator from this case. Removing them will revoke their access to all evidence in this case.
             </p>
           </div>
+          {errorMessage && (
+            <div className="flex items-start space-x-2 p-3 bg-red-950/40 border border-red-900/50 rounded-md">
+              <AlertCircle className="w-5 h-5 text-red-500 shrink-0 mt-0.5" />
+              <p className="text-sm text-red-400 break-words">{errorMessage}</p>
+            </div>
+          )}
         </div>
         <DialogFooter className="bg-transparent border-t-zinc-800 flex justify-between pt-4 mt-2">
           <button

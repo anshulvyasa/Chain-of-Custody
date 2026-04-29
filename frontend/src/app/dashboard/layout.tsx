@@ -8,6 +8,7 @@ import { Folder, ShieldAlert, Search, Plus, Users } from 'lucide-react';
 import { ConnectButton } from '@rainbow-me/rainbowkit';
 import Link from 'next/link';
 import AddInvestigatorButton from '@/components/AddInvestigatorButton';
+import PromoteInvestigatorButton from '@/components/PromoteInvestigatorButton';
 import { useQueryClient } from '@tanstack/react-query';
 import { ManageCaseInvestigatorModal } from '@/components/dashboard/ManageCaseInvestigatorModal';
 
@@ -41,10 +42,12 @@ export default function DashboardLayout({
   const [activeCaseName, setActiveCaseName] = useState('');
   const [targetInvestigator, setTargetInvestigator] = useState('');
   const [isManagePending, setIsManagePending] = useState(false);
+  const [manageError, setManageError] = useState<string | null>(null);
 
   const handleManageAction = async (action: 'ADD' | 'REMOVE') => {
     if (!activeCaseId || !targetInvestigator || !publicClient) return;
     setIsManagePending(true);
+    setManageError(null);
     try {
       let tx;
       if (action === 'ADD') {
@@ -59,7 +62,13 @@ export default function DashboardLayout({
       setManageModalOpen(false);
       queryClient.invalidateQueries({ queryKey: ['readContract'] });
     } catch (e: any) {
-      alert(e.message || 'Error managing investigators');
+      if (e.shortMessage) {
+        setManageError(e.shortMessage);
+      } else if (e.message) {
+        setManageError(e.message.split('\n')[0]);
+      } else {
+        setManageError('Error managing investigators');
+      }
     } finally {
       setIsManagePending(false);
     }
@@ -161,6 +170,7 @@ export default function DashboardLayout({
                     setActiveCaseId(c.caseId);
                     setActiveCaseName(c.caseTitle);
                     setTargetInvestigator('');
+                    setManageError(null);
                     setManageModalOpen(true);
                   }}
                   className="p-1 text-zinc-500 hover:text-zinc-300 opacity-0 group-hover:opacity-100 transition-opacity rounded hover:bg-zinc-700"
@@ -192,6 +202,7 @@ export default function DashboardLayout({
         <header className="h-16 border-b border-zinc-800 flex items-center justify-between px-8 bg-zinc-900/50 backdrop-blur-md">
           <h2 className="text-lg font-medium text-zinc-100">Case Evidence Management</h2>
           <div className="flex items-center gap-4">
+            <PromoteInvestigatorButton />
             <AddInvestigatorButton />
             <div className="text-xs bg-zinc-800 px-3 py-1 rounded-full text-zinc-400 flex items-center">
               <span className="w-2 h-2 rounded-full bg-emerald-500 mr-2"></span>
@@ -207,12 +218,16 @@ export default function DashboardLayout({
 
       <ManageCaseInvestigatorModal
         isOpen={manageModalOpen}
-        onOpenChange={setManageModalOpen}
+        onOpenChange={(open) => {
+          setManageModalOpen(open);
+          if (!open) setManageError(null);
+        }}
         caseName={activeCaseName}
         targetInvestigator={targetInvestigator}
         setTargetInvestigator={setTargetInvestigator}
         handleAction={handleManageAction}
         isPending={isManagePending}
+        errorMessage={manageError}
       />
     </div>
   );

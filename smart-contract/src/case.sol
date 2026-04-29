@@ -117,7 +117,11 @@ contract Case is Investigator {
             "You are not Allowded to add The investigator in this case"
         );
 
-        caseToInvestigator[_caseId].add(_investigator);
+        require(investigators[_investigator].exist, "Investigator does not exist in the system");
+
+        bool wasAdded = caseToInvestigator[_caseId].add(_investigator);
+        require(wasAdded, "Investigator is already in this case");
+        
         investigatorToCases[_investigator].add(_caseId);
 
         emit InvestigatorAddedToCase(
@@ -136,6 +140,7 @@ contract Case is Investigator {
             caseToInvestigator[_caseId].contains(msg.sender),
             "You are not allowed to remove the investigator from this case"
         );
+        require(investigators[_investigator].exist, "Investigator does not exist in the system");
         require(
             caseToInvestigator[_caseId].contains(_investigator),
             "Investigator is not part of this case"

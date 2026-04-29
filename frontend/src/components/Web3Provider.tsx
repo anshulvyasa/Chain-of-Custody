@@ -7,13 +7,7 @@ import {
 } from '@rainbow-me/rainbowkit';
 import { WagmiProvider } from 'wagmi';
 import {
-  mainnet,
-  polygon,
-  optimism,
-  arbitrum,
-  base,
   hardhat,
-  sepolia,
 } from 'wagmi/chains';
 import {
   QueryClientProvider,
@@ -22,9 +16,9 @@ import {
 
 const config = getDefaultConfig({
   appName: 'Chain of Custody dApp',
-  projectId: 'chain-of-custody-demo-id', // Public project ID for demo
-  chains: [mainnet, polygon, optimism, arbitrum, base, hardhat, sepolia],
-  ssr: true, // If your dApp uses server side rendering (SSR)
+  projectId: 'chain-of-custody-demo-id',
+  chains: [hardhat],
+  ssr: true,
 });
 
 const queryClient = new QueryClient();
